@@ -1,0 +1,9 @@
+{
+    "uuid": "deskclock@bytepath",
+    "name": "Desk Clock",
+    "description": "A clock desklet that displays the current time, including seconds.",
+    "icon": "gnome-calendar",
+    "version": "1.0.0",
+    "prevent-decorations": false,
+    "max-instances": "10"
+}
