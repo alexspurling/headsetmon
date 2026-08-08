@@ -33,12 +33,12 @@ class DeskClock extends Desklet.Desklet {
         this._menu.addSettingsAction(_("Date and Time Settings"), "calendar");
     }
 
-    on_desklet_added_to_desktop() {
+    on_desklet_added_to_desktop(userEnabled) {
         this._onSettingsChanged();
         this._tick();
     }
 
-    on_desklet_removed() {
+    on_desklet_removed(deleteConfig) {
         this._stopTicking();
         this.settings.finalize();
     }
