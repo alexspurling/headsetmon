@@ -1,5 +1,6 @@
 const St = imports.gi.St;
 const GLib = imports.gi.GLib;
+const Gio = imports.gi.Gio;
 
 const Desklet = imports.ui.desklet;
 const Settings = imports.ui.settings;
@@ -11,6 +12,7 @@ class DeskClock extends Desklet.Desklet {
         super(metadata, desklet_id);
 
         this._timeoutId = 0;
+        this._entityInfo = {};
 
         this._container = new St.BoxLayout({
             vertical: true,
@@ -36,12 +38,67 @@ class DeskClock extends Desklet.Desklet {
     on_desklet_added_to_desktop(userEnabled) {
         this._onSettingsChanged();
         this._tick();
+
+        console.log("Calling PulseAudio monitor");
+        try {
+            this._pulseAudioProcess = new Gio.Subprocess({
+                argv: ["/home/alex/dev/cpp/pulseaudioclient/cmake-build-debug/pamon"],
+                flags: Gio.SubprocessFlags.STDOUT_PIPE
+            });
+
+            console.log("Calling init");
+            this._pulseAudioProcess.init(null);
+
+            console.log("Getting stdout pipe");
+            let stdout = this._pulseAudioProcess.get_stdout_pipe();
+
+            console.log("Creating data input stream");
+            this._pulseAudioStream = new Gio.DataInputStream({
+                base_stream: stdout
+            });
+
+            console.log("Reading pulseAudio stream");
+            this._readPulseAudioEvent();
+        } catch (e) {
+            console.error("Error calling pulseAudio:", e);
+        }
+    }
+
+    _readPulseAudioEvent() {
+        this._pulseAudioStream.read_line_async(
+            GLib.PRIORITY_DEFAULT,
+            null,
+            (stream, result) => {
+                try {
+                    let [line] = stream.read_line_finish_utf8(result);
+
+                    if (line === null) {
+                        // pulseAudio exited
+                        console.log("PulseAudioMon exited");
+                        return;
+                    }
+
+                    console.log("PulseAudioMon:", line);
+
+                    // Wait for the next event
+                    this._readPulseAudioEvent();
+
+                } catch (e) {
+                    console.error("Error reading pulseAudio:", e);
+                }
+            }
+        );
     }
 
     on_desklet_removed(deleteConfig) {
+        if (this._pulseAudioProcess) {
+            this._pulseAudioProcess.force_exit();
+            this._pulseAudioProcess = null;
+        }
         this._stopTicking();
         this.settings.finalize();
     }
+
 
     _onSettingsChanged() {
         this._timeLabel.style = "font-size: " + this.size + "pt;\ncolor: " + this.color;
