@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-UUID="deskclock@bytepath"
+UUID="headsetmon@bytepath"
 LOG="${HOME}/.xsession-errors"
 
 # Lines mentioning the desklet by name, plus console.log output (which arrives as

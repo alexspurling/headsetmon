@@ -1,8 +1,8 @@
 {
-    "uuid": "deskclock@bytepath",
-    "name": "Desk Clock",
-    "description": "A clock desklet that displays the current time, including seconds.",
-    "icon": "gnome-calendar",
+    "uuid": "headsetmon@bytepath",
+    "name": "Headsetmon",
+    "description": "Display current state of your bluetooth headset",
+    "icon": "audio-headphones",
     "version": "1.0.0",
     "prevent-decorations": false,
     "max-instances": "10"

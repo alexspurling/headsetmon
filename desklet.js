@@ -4,7 +4,7 @@ const GLib = imports.gi.GLib;
 const Desklet = imports.ui.desklet;
 const Settings = imports.ui.settings;
 
-const UUID = "deskclock@bytepath";
+const UUID = "headsetmon@bytepath";
 
 class DeskClock extends Desklet.Desklet {
     constructor(metadata, desklet_id) {
