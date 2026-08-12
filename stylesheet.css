@@ -13,3 +13,10 @@
 .deskclock-date {
     font-weight: normal;
 }
+
+.deskclock-sink {
+    font-weight: normal;
+    font-size: 9pt;
+    max-width: 200px;
+    ellipsize: 3;
+}

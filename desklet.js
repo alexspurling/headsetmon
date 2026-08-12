@@ -13,6 +13,9 @@ class DeskClock extends Desklet.Desklet {
 
         this._timeoutId = 0;
         this._entityInfo = {};
+        this._sinks = {};
+        this._defaultSinkName = null;
+        this._sinkIndexToName = {};
 
         this._container = new St.BoxLayout({
             vertical: true,
@@ -20,8 +23,10 @@ class DeskClock extends Desklet.Desklet {
         });
         this._timeLabel = new St.Label({ style_class: "deskclock-time" });
         this._dateLabel = new St.Label({ style_class: "deskclock-date" });
+        this._sinkLabel = new St.Label({ style_class: "deskclock-sink" });
         this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
         this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
+        this._container.add(this._sinkLabel, { x_fill: false, x_align: St.Align.MIDDLE });
 
         this.setContent(this._container);
         this.setHeader(_("Clock"));
@@ -78,7 +83,49 @@ class DeskClock extends Desklet.Desklet {
                         return;
                     }
 
-                    console.log("PulseAudioMon:", line);
+                    let evt;
+                    try {
+                        evt = JSON.parse(line);
+                    } catch (_) {
+                        // skip non-JSON lines (stderr noise, etc.)
+                        this._readPulseAudioEvent();
+                        return;
+                    }
+
+                    let on = evt.on;
+                    let event = evt.event;
+
+                    if (event === "new" || event === "change") {
+                        if (on === "sink" && evt.name && evt.description) {
+                            this._sinks[evt.name] = evt.description;
+                            this._updateSinkDisplay();
+                        } else if (on === "sink" && event === "change" && evt.prop === "description") {
+                            // diffs carry index + prop + old + new, not name
+                            if (this._sinkIndexToName && this._sinkIndexToName[evt.index]) {
+                                let name = this._sinkIndexToName[evt.index];
+                                this._sinks[name] = evt.new;
+                                this._updateSinkDisplay();
+                            }
+                        } else if (on === "server" && evt.default_sink_name) {
+                            this._defaultSinkName = evt.default_sink_name;
+                            this._updateSinkDisplay();
+                        } else if (on === "server" && event === "change" && evt.prop === "default_sink_name") {
+                            console.log("default sink changed to " + evt.new);
+                            this._defaultSinkName = evt.new;
+                            this._updateSinkDisplay();
+                        }
+
+                        if (on === "sink" && evt.name) {
+                            this._sinkIndexToName[evt.index] = evt.name;
+                        }
+                    } else if (event === "remove" && on === "sink") {
+                        if (this._sinkIndexToName[evt.index]) {
+                            let name = this._sinkIndexToName[evt.index];
+                            delete this._sinks[name];
+                            delete this._sinkIndexToName[evt.index];
+                            this._updateSinkDisplay();
+                        }
+                    }
 
                     // Wait for the next event
                     this._readPulseAudioEvent();
@@ -88,6 +135,15 @@ class DeskClock extends Desklet.Desklet {
                 }
             }
         );
+    }
+
+    _updateSinkDisplay() {
+        let desc = null;
+        console.log("Got default sink with name", this._defaultSinkName, ":", !!this._sinks[this._defaultSinkName]);
+        if (this._defaultSinkName && this._sinks[this._defaultSinkName]) {
+            desc = this._sinks[this._defaultSinkName];
+        }
+        this._sinkLabel.set_text(desc || "");
     }
 
     on_desklet_removed(deleteConfig) {
@@ -103,6 +159,8 @@ class DeskClock extends Desklet.Desklet {
     _onSettingsChanged() {
         this._timeLabel.style = "font-size: " + this.size + "pt;\ncolor: " + this.color;
         this._dateLabel.style = "font-size: " + Math.max(Math.round(this.size / 3), 6) +
+                                "pt;\ncolor: " + this.color;
+        this._sinkLabel.style = "font-size: " + Math.max(Math.round(this.size / 3), 6) +
                                 "pt;\ncolor: " + this.color;
         this._dateLabel.visible = this.show_date;
         this._updateClock();
