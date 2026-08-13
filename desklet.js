@@ -27,13 +27,21 @@ class DeskClock extends Desklet.Desklet {
         // this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
         // this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
 
-        this._sinkLabelLabel = new St.Label({ text: "Current audio output: ", style_class: "deskclock-sink-label" });
-        this._sinkLabel = new St.Label({ style_class: "deskclock-sink" });
+        this._container.add(new St.Label({ text: "Current audio output: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
+
+        this._sinkLabel = new St.Label({ style_class: "deskclock-text" });
         this._sinkLabel.clutter_text.line_wrap = true;
         this._sinkLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
         this._sinkLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
-        this._container.add(this._sinkLabelLabel, { x_fill: false, x_align: St.Align.START });
         this._container.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
+
+        this._container.add(new St.Label({ text: "Profile: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
+
+        this._profileLabel = new St.Label({ style_class: "deskclock-text" });
+        this._profileLabel.clutter_text.line_wrap = true;
+        this._profileLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
+        this._profileLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
+        this._container.add(this._profileLabel, { x_fill: true, x_align: St.Align.MIDDLE });
 
         // Load the desklet's own stylesheet
         this._reloadStylesheet();
@@ -133,6 +141,10 @@ class DeskClock extends Desklet.Desklet {
                             console.log("default sink changed to " + evt.new);
                             this._defaultSinkName = evt.new;
                             this._updateSinkDisplay();
+                        } else if (on === "card" && evt.active_profile && evt.active_profile.description) {
+                            this._profileLabel.set_text(evt.active_profile.description);
+                        } else if (on === "card" && event === "change" && evt.prop === "active_profile.description") {
+                            this._profileLabel.set_text(evt.new);
                         }
 
                         if (on === "sink" && evt.name) {
