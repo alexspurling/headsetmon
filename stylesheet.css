@@ -3,6 +3,7 @@
     border-radius: 12px;
     background-color: rgba(0, 0, 0, 0.45);
     spacing: 4px;
+    width: 300px;
 }
 
 .deskclock-time {
@@ -14,9 +15,12 @@
     font-weight: normal;
 }
 
+.deskclock-sink-label {
+    font-weight: normal;
+    font-size: 15pt;
+}
+
 .deskclock-sink {
     font-weight: normal;
-    font-size: 9pt;
-    max-width: 200px;
-    ellipsize: 3;
+    font-size: 20pt;
 }

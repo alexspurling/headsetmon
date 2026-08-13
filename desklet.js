@@ -23,21 +23,41 @@ class DeskClock extends Desklet.Desklet {
         });
         this._timeLabel = new St.Label({ style_class: "deskclock-time" });
         this._dateLabel = new St.Label({ style_class: "deskclock-date" });
+        // Don't display the time and date for now
+        // this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
+        // this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
+
+        this._sinkLabelLabel = new St.Label({ text: "Current audio output: ", style_class: "deskclock-sink-label" });
         this._sinkLabel = new St.Label({ style_class: "deskclock-sink" });
-        this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
-        this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
-        this._container.add(this._sinkLabel, { x_fill: false, x_align: St.Align.MIDDLE });
+        this._sinkLabel.clutter_text.line_wrap = true;
+        this._sinkLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
+        this._sinkLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
+        this._container.add(this._sinkLabelLabel, { x_fill: false, x_align: St.Align.START });
+        this._container.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
+
+        // Load the desklet's own stylesheet
+        this._reloadStylesheet();
 
         this.setContent(this._container);
         this.setHeader(_("Clock"));
 
         this.settings = new Settings.DeskletSettings(this, UUID, desklet_id);
         this.settings.bind("use-24h", "use_24h", this._onSettingsChanged);
-        this.settings.bind("show-date", "show_date", this._onSettingsChanged);
-        this.settings.bind("font-size", "size", this._onSettingsChanged);
-        this.settings.bind("text-color", "color", this._onSettingsChanged);
+        // this.settings.bind("show-date", "show_date", this._onSettingsChanged);
+        // this.settings.bind("font-size", "size", this._onSettingsChanged);
+        // this.settings.bind("text-color", "color", this._onSettingsChanged);
 
         this._menu.addSettingsAction(_("Date and Time Settings"), "calendar");
+    }
+
+    _reloadStylesheet() {
+        let dir = GLib.build_filenamev([
+            GLib.get_user_data_dir(), 'cinnamon', 'desklets', UUID
+        ]);
+        let cssPath = GLib.build_filenamev([dir, 'stylesheet.css']);
+        let theme = new St.Theme();
+        theme.load_stylesheet(cssPath);
+        this._container.set_theme(theme);
     }
 
     on_desklet_added_to_desktop(userEnabled) {
@@ -157,11 +177,6 @@ class DeskClock extends Desklet.Desklet {
 
 
     _onSettingsChanged() {
-        this._timeLabel.style = "font-size: " + this.size + "pt;\ncolor: " + this.color;
-        this._dateLabel.style = "font-size: " + Math.max(Math.round(this.size / 3), 6) +
-                                "pt;\ncolor: " + this.color;
-        this._sinkLabel.style = "font-size: " + Math.max(Math.round(this.size / 3), 6) +
-                                "pt;\ncolor: " + this.color;
         this._dateLabel.visible = this.show_date;
         this._updateClock();
     }
