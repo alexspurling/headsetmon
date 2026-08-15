@@ -16,6 +16,7 @@ class DeskClock extends Desklet.Desklet {
         this._sinks = {};
         this._defaultSinkName = null;
         this._sinkIndexToName = {};
+        this._cards = {};
 
         this._container = new St.BoxLayout({
             vertical: true,
@@ -138,28 +139,39 @@ class DeskClock extends Desklet.Desklet {
                     let on = evt.on;
                     let event = evt.event;
 
+                    console.log(JSON.stringify(evt));
+
                     if (event === "new" || event === "change") {
-                        if (on === "sink" && evt.name && evt.description) {
-                            this._sinks[evt.name] = evt.description;
+                        if (on === "sink" && evt.name && evt.card && evt.description) {
+                            this._sinks[evt.index] = { name: evt.name, card: evt.card, description: evt.description }
                             this._updateSinkDisplay();
                         } else if (on === "sink" && event === "change" && evt.prop === "description") {
-                            // diffs carry index + prop + old + new, not name
-                            if (this._sinkIndexToName && this._sinkIndexToName[evt.index]) {
-                                let name = this._sinkIndexToName[evt.index];
-                                this._sinks[name] = evt.new;
+                            if (this._sinks[evt.index]) {
+                                this._sinks[evt.index].description = evt.new;
                                 this._updateSinkDisplay();
                             }
                         } else if (on === "server" && evt.default_sink_name) {
                             this._defaultSinkName = evt.default_sink_name;
                             this._updateSinkDisplay();
+                            this._updateProfileDisplay();
                         } else if (on === "server" && event === "change" && evt.prop === "default_sink_name") {
                             console.log("default sink changed to " + evt.new);
                             this._defaultSinkName = evt.new;
                             this._updateSinkDisplay();
+                            this._updateProfileDisplay();
                         } else if (on === "card" && evt.active_profile && evt.active_profile.description) {
-                            this._profileLabel.set_text(evt.active_profile.description);
+                            this._cards[evt.index] = {
+                                name: evt.name,
+                                active_profile: { name: evt.active_profile.name, description: evt.active_profile.description }
+                            };
+                        } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
+                            if (this._cards[evt.index]) {
+                                this._cards[evt.index].active_profile.name = evt.new;
+                            }
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.description") {
-                            this._profileLabel.set_text(evt.new);
+                            if (this._cards[evt.index]) {
+                                this._cards[evt.index].active_profile.description = evt.new;
+                            }
                         }
 
                         if (on === "sink" && evt.name) {
@@ -185,12 +197,18 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _updateSinkDisplay() {
-        let desc = null;
-        console.log("Got default sink with name", this._defaultSinkName, ":", !!this._sinks[this._defaultSinkName]);
-        if (this._defaultSinkName && this._sinks[this._defaultSinkName]) {
-            desc = this._sinks[this._defaultSinkName];
+        let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
+        if (sinkWithName) {
+            this._sinkLabel.set_text(sinkWithName.description || "Unknown");
         }
-        this._sinkLabel.set_text(desc || "");
+    }
+
+    _updateProfileDisplay() {
+        let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
+        if (sinkWithName) {
+            let card = this._cards[sinkWithName.card];
+            this._profileLabel.set_text(card.active_profile.description || "Unknown");
+        }
     }
 
     on_desklet_removed(deleteConfig) {
