@@ -154,12 +154,12 @@ class DeskClock extends Desklet.Desklet {
                             this._defaultSinkName = evt.new;
                             this._updateSinkDisplay();
                             this._updateProfileDisplay();
-                        } else if (on === "card" && event === "new" && evt.active_profile && evt.active_profile.description && evt.proplist) {
-                            console.log("Card event is", JSON.stringify(evt));
+                        } else if (on === "card" && event === "new") {
                             this._cards[evt.index] = {
                                 name: evt.name,
-                                active_profile: { name: evt.active_profile.name, description: evt.active_profile.description },
-                                proplist: evt.proplist
+                                properties: evt.proplist,
+                                active_profile: evt.active_profile,
+                                profiles: evt.profiles2
                             };
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
                             if (this._cards[evt.index]) {
@@ -212,16 +212,35 @@ class DeskClock extends Desklet.Desklet {
         let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
         if (sinkWithName) {
             let card = this._cards[sinkWithName.card];
-            let desc = card?.active_profile?.description;
-            if (desc && desc.startsWith("High Fidelity Playback")) {
+            let microphone_available = false;
+            let high_quality_available = false;
+            if (card.profiles) {
+                microphone_available = card.profiles?.some(profile => profile.name === "headset-head-unit-msbc");
+                high_quality_available = card.profiles?.some(profile => profile.name === "a2dp-sink");
+            }
+            let active_profile = card?.active_profile?.description;
+            if (active_profile && active_profile.startsWith("High Fidelity Playback")) {
                 this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-quality";
                 this._profileLabel.set_text("High quality audio");
-            } else if (desc && desc.startsWith("Headset Head Unit")) {
+                if (microphone_available) {
+                    this._switchProfileButton.enabled = true;
+                    this._switchProfileButton.set_label("Enable microphone");
+                }
+            } else if (active_profile && active_profile.startsWith("Headset Head Unit")) {
                 this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-mic";
                 this._profileLabel.set_text("Microphone enabled");
+                if (high_quality_available) {
+                    this._switchProfileButton.enabled = true;
+                    this._switchProfileButton.set_label("Turn off microphone");
+                }
             } else {
                 this._profileLabel.style_class = "headsetmon-profile-text";
-                this._profileLabel.set_text(desc || "Unknown");
+                this._profileLabel.set_text(active_profile || "Unknown");
+            }
+            // Disable the button if no suitable profile is available
+            if (!microphone_available && !high_quality_available) {
+                this._switchProfileButton.enabled = false;
+                this._switchProfileButton.set_label("Switch profile");
             }
         }
     }
