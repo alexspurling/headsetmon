@@ -1,4 +1,5 @@
 const St = imports.gi.St;
+const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 
@@ -23,8 +24,19 @@ class DeskClock extends Desklet.Desklet {
         });
 
         let sinkIcon = new St.Icon({ icon_name: "audio-headphones", icon_size: 22 });
-        let sinkIconBox = new St.Bin({ style_class: "headsetmon-sink-icon" });
+        let sinkIconBox = new St.Widget({
+            style_class: "headsetmon-sink-icon",
+            layout_manager: new Clutter.BinLayout()
+        });
         sinkIconBox.add_actor(sinkIcon);
+
+        this._bluetoothDot = new St.Widget({
+            style_class: "headsetmon-bluetooth-dot",
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.END
+        });
+        sinkIconBox.add_actor(this._bluetoothDot);
+        this._bluetoothDot.hide();
         this._sinkLabel = new St.Label({ style_class: "headsetmon-device" });
         this._sinkLabel.clutter_text.line_wrap = true;
         this._sinkLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
@@ -142,10 +154,12 @@ class DeskClock extends Desklet.Desklet {
                             this._defaultSinkName = evt.new;
                             this._updateSinkDisplay();
                             this._updateProfileDisplay();
-                        } else if (on === "card" && evt.active_profile && evt.active_profile.description) {
+                        } else if (on === "card" && event === "new" && evt.active_profile && evt.active_profile.description && evt.proplist) {
+                            console.log("Card event is", JSON.stringify(evt));
                             this._cards[evt.index] = {
                                 name: evt.name,
-                                active_profile: { name: evt.active_profile.name, description: evt.active_profile.description }
+                                active_profile: { name: evt.active_profile.name, description: evt.active_profile.description },
+                                proplist: evt.proplist
                             };
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
                             if (this._cards[evt.index]) {
@@ -182,7 +196,15 @@ class DeskClock extends Desklet.Desklet {
     _updateSinkDisplay() {
         let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
         if (sinkWithName) {
+            let card = this._cards[sinkWithName.card];
+            if (card.proplist && card.proplist["device.bus"] === "bluetooth") {
+                this._bluetoothDot.show();
+            } else {
+                this._bluetoothDot.hide();
+            }
             this._sinkLabel.set_text(sinkWithName.description || "Unknown");
+        } else {
+            this._bluetoothDot.hide();
         }
     }
 

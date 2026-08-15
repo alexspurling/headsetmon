@@ -18,6 +18,15 @@
     background-color: #444444;
 }
 
+.headsetmon-bluetooth-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #4CAF50;
+    margin-left: 20px;
+    margin-top: 20px;
+}
+
 .headsetmon-separator {
     min-height: 1px;
     background-color: #444444;
