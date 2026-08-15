@@ -7,6 +7,9 @@ const Desklet = imports.ui.desklet;
 
 const UUID = "headsetmon@bytepath";
 
+const HEADSET_PROFILE = "headset-head-unit-msbc";
+const HIGH_QUALITY_PROFILE = "a2dp-sink";
+
 class DeskClock extends Desklet.Desklet {
     constructor(metadata, desklet_id) {
         super(metadata, desklet_id);
@@ -63,6 +66,20 @@ class DeskClock extends Desklet.Desklet {
         this._container.add(profileRow, { x_fill: true, x_align: St.Align.MIDDLE });
 
         this._switchProfileButton = new St.Button({ label: "Switch profile", style_class: "headsetmon-switch-button" });
+        this._pendingAction = null;
+        this._switchProfileButton.connect("clicked", () => {
+            if (this._pendingAction === "enable_microphone") {
+                let sink = Object.values(this._sinks).find(s => s.name === this._defaultSinkName);
+                if (sink) {
+                    GLib.spawn_command_line_async(`pactl set-card-profile ${sink.card} ${HEADSET_PROFILE}`);
+                }
+            } else if (this._pendingAction === "enable_high_quality") {
+                let sink = Object.values(this._sinks).find(s => s.name === this._defaultSinkName);
+                if (sink) {
+                    GLib.spawn_command_line_async(`pactl set-card-profile ${sink.card} ${HIGH_QUALITY_PROFILE}`);
+                }
+            }
+        });
         this._container.add(this._switchProfileButton, { x_fill: true, x_align: St.Align.MIDDLE });
 
         // Load the desklet's own stylesheet
@@ -215,8 +232,8 @@ class DeskClock extends Desklet.Desklet {
             let microphone_available = false;
             let high_quality_available = false;
             if (card.profiles) {
-                microphone_available = card.profiles?.some(p => p.available === 1 && p.name === "headset-head-unit-msbc");
-                high_quality_available = card.profiles?.some(p => p.available === 1 && p.name === "a2dp-sink");
+                microphone_available = card.profiles?.some(p => p.available === 1 && p.name === HEADSET_PROFILE);
+                high_quality_available = card.profiles?.some(p => p.available === 1 && p.name === HIGH_QUALITY_PROFILE);
             }
             let active_profile = card?.active_profile?.description;
             if (active_profile && active_profile.startsWith("High Fidelity Playback")) {
@@ -225,7 +242,9 @@ class DeskClock extends Desklet.Desklet {
                 if (microphone_available) {
                     this._switchProfileButton.pseudo_class = "";
                     this._switchProfileButton.set_label("Enable microphone");
-                    this._switchProfileButton.connect("clicked", this._enable_microphone)
+                    this._pendingAction = "enable_microphone";
+                } else {
+                    this._pendingAction = null;
                 }
             } else if (active_profile && active_profile.startsWith("Headset Head Unit")) {
                 this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-mic";
@@ -233,31 +252,22 @@ class DeskClock extends Desklet.Desklet {
                 if (high_quality_available) {
                     this._switchProfileButton.pseudo_class = "";
                     this._switchProfileButton.set_label("Turn off microphone");
-                    this._switchProfileButton.connect("clicked", this._enable_high_quality_audio)
+                    this._pendingAction = "enable_high_quality";
+                } else {
+                    this._pendingAction = null;
                 }
             } else {
                 this._profileLabel.style_class = "headsetmon-profile-text";
                 this._profileLabel.set_text(active_profile || "Unknown");
+                this._pendingAction = null;
             }
             // Disable the button if no suitable profile is available
             if (!microphone_available && !high_quality_available) {
                 this._switchProfileButton.pseudo_class = "disabled";
                 this._switchProfileButton.set_label("Switch profile");
-                this._switchProfileButton.connect("clicked", this._button_disabled)
+                this._pendingAction = null;
             }
         }
-    }
-
-    _enable_microphone() {
-        console.log("Enabling microphone");
-    }
-
-    _enable_high_quality_audio() {
-        console.log("Enabling high quality audio");
-    }
-
-    _button_disabled() {
-        // Do nothing
     }
 
     on_desklet_removed(deleteConfig) {
