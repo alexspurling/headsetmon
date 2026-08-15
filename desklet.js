@@ -3,7 +3,6 @@ const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 
 const Desklet = imports.ui.desklet;
-const Settings = imports.ui.settings;
 
 const UUID = "headsetmon@bytepath";
 
@@ -22,11 +21,6 @@ class DeskClock extends Desklet.Desklet {
             vertical: true,
             style_class: "headsetmon-container"
         });
-        this._timeLabel = new St.Label({ style_class: "deskclock-time" });
-        this._dateLabel = new St.Label({ style_class: "deskclock-date" });
-        // Don't display the time and date for now
-        // this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
-        // this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
 
         let sinkIcon = new St.Icon({ icon_name: "audio-headphones", icon_size: 22 });
         let sinkIconBox = new St.Bin({ style_class: "headsetmon-sink-icon" });
@@ -37,7 +31,7 @@ class DeskClock extends Desklet.Desklet {
         this._sinkLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
         let sinkRow = new St.BoxLayout({ style_class: "headsetmon-sink-row" });
         sinkRow.add(sinkIconBox, { x_fill: false, y_fill: false, x_align: St.Align.START, y_align: St.Align.MIDDLE });
-        sinkRow.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
+        sinkRow.add(this._sinkLabel, { x_fill: true, y_fill: false, x_align: St.Align.MIDDLE, y_align: St.Align.MIDDLE });
         this._container.add(sinkRow, { x_fill: true, x_align: St.Align.MIDDLE });
 
         let separator = new St.BoxLayout({ style_class: "headsetmon-separator" });
@@ -63,15 +57,7 @@ class DeskClock extends Desklet.Desklet {
         this._reloadStylesheet();
 
         this.setContent(this._container);
-        this.setHeader(_("Clock"));
-
-        this.settings = new Settings.DeskletSettings(this, UUID, desklet_id);
-        this.settings.bind("use-24h", "use_24h", this._onSettingsChanged);
-        // this.settings.bind("show-date", "show_date", this._onSettingsChanged);
-        // this.settings.bind("font-size", "size", this._onSettingsChanged);
-        // this.settings.bind("text-color", "color", this._onSettingsChanged);
-
-        this._menu.addSettingsAction(_("Date and Time Settings"), "calendar");
+        this.setHeader(_("Headsetmon"));
     }
 
     _reloadStylesheet() {
@@ -85,13 +71,10 @@ class DeskClock extends Desklet.Desklet {
     }
 
     on_desklet_added_to_desktop(userEnabled) {
-        this._onSettingsChanged();
-        this._tick();
-
         console.log("Calling PulseAudio monitor");
         try {
             this._pulseAudioProcess = new Gio.Subprocess({
-                argv: ["/home/alex/dev/cpp/pulseaudioclient/cmake-build-debug/pamon"],
+                argv: ["/home/alex/dev/cpp/paeventmon/cmake-build-debug/paeventmon"],
                 flags: Gio.SubprocessFlags.STDOUT_PIPE
             });
 
@@ -123,7 +106,7 @@ class DeskClock extends Desklet.Desklet {
 
                     if (line === null) {
                         // pulseAudio exited
-                        console.log("PulseAudioMon exited");
+                        console.log("Waiting for events from PulseAudioEventMon");
                         return;
                     }
 
@@ -215,47 +198,6 @@ class DeskClock extends Desklet.Desklet {
         if (this._pulseAudioProcess) {
             this._pulseAudioProcess.force_exit();
             this._pulseAudioProcess = null;
-        }
-        this._stopTicking();
-        this.settings.finalize();
-    }
-
-
-    _onSettingsChanged() {
-        this._dateLabel.visible = this.show_date;
-        this._updateClock();
-    }
-
-    _updateClock() {
-        let now = GLib.DateTime.new_now_local();
-
-        this._timeLabel.set_text(now.format(this.use_24h ? "%H:%M:%S" : "%-l:%M:%S %p"));
-
-        if (this.show_date)
-            this._dateLabel.set_text(now.format("%A, %B %-d"));
-    }
-
-    /**
-     * Updates the labels, then re-arms the timer for the start of the next
-     * second so the display never drifts off the second boundary.
-     */
-    _tick() {
-        this._updateClock();
-
-        let elapsedMs = Math.floor((GLib.get_real_time() % 1000000) / 1000);
-        let delay = 1000 - elapsedMs + 5;
-
-        this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-            this._timeoutId = 0;
-            this._tick();
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    _stopTicking() {
-        if (this._timeoutId > 0) {
-            GLib.source_remove(this._timeoutId);
-            this._timeoutId = 0;
         }
     }
 }

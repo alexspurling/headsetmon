@@ -1,19 +1,10 @@
 .headsetmon-container {
     padding: 12px 20px;
     border-radius: 12px;
-    background-color: rgba(0, 0, 0, 0.45);
+    background-color: #3a3a3a;
     spacing: 4px;
     width: 400px;
     height: 220px;
-}
-
-.deskclock-time {
-    font-weight: bold;
-    font-feature-settings: "tnum";
-}
-
-.deskclock-date {
-    font-weight: normal;
 }
 
 .headsetmon-sink-row {
