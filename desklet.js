@@ -27,13 +27,17 @@ class DeskClock extends Desklet.Desklet {
         // this._container.add(this._timeLabel, { x_fill: false, x_align: St.Align.MIDDLE });
         // this._container.add(this._dateLabel, { x_fill: false, x_align: St.Align.MIDDLE });
 
-        this._container.add(new St.Label({ text: "Current audio output: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
-
-        this._sinkLabel = new St.Label({ style_class: "deskclock-text" });
+        let sinkIcon = new St.Icon({ icon_name: "audio-headphones", icon_size: 22 });
+        let sinkIconBox = new St.Bin({ style_class: "headsetmon-sink-icon" });
+        sinkIconBox.add_actor(sinkIcon);
+        this._sinkLabel = new St.Label({ style_class: "headsetmon-device" });
         this._sinkLabel.clutter_text.line_wrap = true;
         this._sinkLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
         this._sinkLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
-        this._container.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
+        let sinkRow = new St.BoxLayout({ style_class: "headsetmon-sink-row" });
+        sinkRow.add(sinkIconBox, { x_fill: false, y_fill: false, x_align: St.Align.START, y_align: St.Align.MIDDLE });
+        sinkRow.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
+        this._container.add(sinkRow, { x_fill: true, x_align: St.Align.MIDDLE });
 
         this._container.add(new St.Label({ text: "Profile: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
 

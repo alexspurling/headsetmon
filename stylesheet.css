@@ -20,7 +20,23 @@
     font-size: 15pt;
 }
 
+.headsetmon-sink-row {
+    spacing: 12px;
+}
+
+.headsetmon-sink-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background-color: #444444;
+}
+
 .deskclock-text {
     font-weight: normal;
     font-size: 18pt;
+}
+
+.headsetmon-device {
+    font-weight: bold;
+    font-size: 20px;
 }
