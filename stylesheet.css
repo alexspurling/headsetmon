@@ -1,9 +1,10 @@
-.deskclock-container {
+.headsetmon-container {
     padding: 12px 20px;
     border-radius: 12px;
     background-color: rgba(0, 0, 0, 0.45);
     spacing: 4px;
     width: 400px;
+    height: 220px;
 }
 
 .deskclock-time {

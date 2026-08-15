@@ -19,7 +19,7 @@ class DeskClock extends Desklet.Desklet {
 
         this._container = new St.BoxLayout({
             vertical: true,
-            style_class: "deskclock-container"
+            style_class: "headsetmon-container"
         });
         this._timeLabel = new St.Label({ style_class: "deskclock-time" });
         this._dateLabel = new St.Label({ style_class: "deskclock-date" });
@@ -41,6 +41,10 @@ class DeskClock extends Desklet.Desklet {
 
         let separator = new St.BoxLayout({ style_class: "headsetmon-separator" });
         this._container.add(separator, { x_fill: true, y_fill: false, x_align: St.Align.MIDDLE });
+
+        let spacer = new St.Bin();
+        spacer.y_expand = true;
+        this._container.add(spacer, { x_fill: true, x_align: St.Align.FILL });
 
         let profileRow = new St.BoxLayout({ style_class: "headsetmon-profile-row" });
         profileRow.add(new St.Label({ text: "Current profile: ", style_class: "headsetmon-profile-label" }), { x_fill: false, x_align: St.Align.START });
