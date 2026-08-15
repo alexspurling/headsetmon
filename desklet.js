@@ -55,6 +55,9 @@ class DeskClock extends Desklet.Desklet {
         profileRow.add(this._profileLabel, { x_fill: true, x_align: St.Align.START });
         this._container.add(profileRow, { x_fill: true, x_align: St.Align.MIDDLE });
 
+        this._switchProfileButton = new St.Button({ label: "Switch profile", style_class: "headsetmon-switch-button" });
+        this._container.add(this._switchProfileButton, { x_fill: true, x_align: St.Align.MIDDLE });
+
         // Load the desklet's own stylesheet
         this._reloadStylesheet();
 
