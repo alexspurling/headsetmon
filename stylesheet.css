@@ -3,7 +3,7 @@
     border-radius: 12px;
     background-color: rgba(0, 0, 0, 0.45);
     spacing: 4px;
-    width: 300px;
+    width: 400px;
 }
 
 .deskclock-time {
@@ -13,11 +13,6 @@
 
 .deskclock-date {
     font-weight: normal;
-}
-
-.deskclock-label {
-    font-weight: normal;
-    font-size: 15pt;
 }
 
 .headsetmon-sink-row {
@@ -38,9 +33,14 @@
     margin-bottom: 10px;
 }
 
-.deskclock-text {
+.headsetmon-profile-label {
     font-weight: normal;
-    font-size: 18pt;
+    font-size: 15px;
+}
+
+.headsetmon-profile-text {
+    font-weight: bold;
+    font-size: 15px;
 }
 
 .headsetmon-device {

@@ -42,9 +42,9 @@ class DeskClock extends Desklet.Desklet {
         let separator = new St.BoxLayout({ style_class: "headsetmon-separator" });
         this._container.add(separator, { x_fill: true, y_fill: false, x_align: St.Align.MIDDLE });
 
-        this._container.add(new St.Label({ text: "Profile: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
+        this._container.add(new St.Label({ text: "Current profile: ", style_class: "headsetmon-profile-label" }), { x_fill: false, x_align: St.Align.START });
 
-        this._profileLabel = new St.Label({ style_class: "deskclock-text" });
+        this._profileLabel = new St.Label({ style_class: "headsetmon-profile-text" });
         this._profileLabel.clutter_text.line_wrap = true;
         this._profileLabel.clutter_text.line_wrap_mode = 2; // wrap at word boundaries (or characters if words are too long)
         this._profileLabel.clutter_text.ellipsize = 0; // Important to disable ellipses because they override any wrapping
