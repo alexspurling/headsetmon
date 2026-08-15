@@ -39,6 +39,9 @@ class DeskClock extends Desklet.Desklet {
         sinkRow.add(this._sinkLabel, { x_fill: true, x_align: St.Align.MIDDLE });
         this._container.add(sinkRow, { x_fill: true, x_align: St.Align.MIDDLE });
 
+        let separator = new St.BoxLayout({ style_class: "headsetmon-separator" });
+        this._container.add(separator, { x_fill: true, y_fill: false, x_align: St.Align.MIDDLE });
+
         this._container.add(new St.Label({ text: "Profile: ", style_class: "deskclock-label" }), { x_fill: false, x_align: St.Align.START });
 
         this._profileLabel = new St.Label({ style_class: "deskclock-text" });
