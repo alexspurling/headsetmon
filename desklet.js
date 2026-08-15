@@ -212,7 +212,17 @@ class DeskClock extends Desklet.Desklet {
         let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
         if (sinkWithName) {
             let card = this._cards[sinkWithName.card];
-            this._profileLabel.set_text(card.active_profile.description || "Unknown");
+            let desc = card?.active_profile?.description;
+            if (desc && desc.startsWith("High Fidelity Playback")) {
+                this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-quality";
+                this._profileLabel.set_text("High quality audio");
+            } else if (desc && desc.startsWith("Headset Head Unit")) {
+                this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-mic";
+                this._profileLabel.set_text("Microphone enabled");
+            } else {
+                this._profileLabel.style_class = "headsetmon-profile-text";
+                this._profileLabel.set_text(desc || "Unknown");
+            }
         }
     }
 

@@ -44,6 +44,14 @@
     font-size: 15px;
 }
 
+.headsetmon-profile-quality {
+    color: #6fb1e0;
+}
+
+.headsetmon-profile-mic {
+    color: #e0a458;
+}
+
 .headsetmon-device {
     font-weight: bold;
     font-size: 20px;
