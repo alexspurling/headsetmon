@@ -197,7 +197,7 @@ class DeskClock extends Desklet.Desklet {
         let sinkWithName = Object.values(this._sinks).find(sink => sink.name === this._defaultSinkName);
         if (sinkWithName) {
             let card = this._cards[sinkWithName.card];
-            if (card.proplist && card.proplist["device.bus"] === "bluetooth") {
+            if (card.properties && card.properties["device.bus"] === "bluetooth") {
                 this._bluetoothDot.show();
             } else {
                 this._bluetoothDot.hide();
@@ -215,23 +215,25 @@ class DeskClock extends Desklet.Desklet {
             let microphone_available = false;
             let high_quality_available = false;
             if (card.profiles) {
-                microphone_available = card.profiles?.some(profile => profile.name === "headset-head-unit-msbc");
-                high_quality_available = card.profiles?.some(profile => profile.name === "a2dp-sink");
+                microphone_available = card.profiles?.some(p => p.available === 1 && p.name === "headset-head-unit-msbc");
+                high_quality_available = card.profiles?.some(p => p.available === 1 && p.name === "a2dp-sink");
             }
             let active_profile = card?.active_profile?.description;
             if (active_profile && active_profile.startsWith("High Fidelity Playback")) {
                 this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-quality";
                 this._profileLabel.set_text("High quality audio");
                 if (microphone_available) {
-                    this._switchProfileButton.enabled = true;
+                    this._switchProfileButton.pseudo_class = "";
                     this._switchProfileButton.set_label("Enable microphone");
+                    this._switchProfileButton.connect("clicked", this._enable_microphone)
                 }
             } else if (active_profile && active_profile.startsWith("Headset Head Unit")) {
                 this._profileLabel.style_class = "headsetmon-profile-text headsetmon-profile-mic";
                 this._profileLabel.set_text("Microphone enabled");
                 if (high_quality_available) {
-                    this._switchProfileButton.enabled = true;
+                    this._switchProfileButton.pseudo_class = "";
                     this._switchProfileButton.set_label("Turn off microphone");
+                    this._switchProfileButton.connect("clicked", this._enable_high_quality_audio)
                 }
             } else {
                 this._profileLabel.style_class = "headsetmon-profile-text";
@@ -239,10 +241,23 @@ class DeskClock extends Desklet.Desklet {
             }
             // Disable the button if no suitable profile is available
             if (!microphone_available && !high_quality_available) {
-                this._switchProfileButton.enabled = false;
+                this._switchProfileButton.pseudo_class = "disabled";
                 this._switchProfileButton.set_label("Switch profile");
+                this._switchProfileButton.connect("clicked", this._button_disabled)
             }
         }
+    }
+
+    _enable_microphone() {
+        console.log("Enabling microphone");
+    }
+
+    _enable_high_quality_audio() {
+        console.log("Enabling high quality audio");
+    }
+
+    _button_disabled() {
+        // Do nothing
     }
 
     on_desklet_removed(deleteConfig) {

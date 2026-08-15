@@ -76,3 +76,7 @@
 .headsetmon-switch-button:active {
     background-color: #d0d0d0;
 }
+
+.headsetmon-switch-button:disabled {
+    color: #bababa;
+}
