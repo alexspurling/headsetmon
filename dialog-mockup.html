@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Device Widget</title>
+  <style>
+    :root {
+      --page-bg: #808080;
+      --dialog-bg: #3a3a3a;
+      --dialog-bg-raised: #444444;
+      --dialog-bg-raised-2: #4d4d4d;
+      --text-primary: #f2f2f2;
+      --text-secondary: #b8b8b8;
+      --text-tertiary: #8a8a8a;
+      --hq-color: #6fb1e0;
+      --mic-color: #e0a458;
+      --off-color: #8a8a8a;
+      --danger-color: #e07070;
+      --divider: rgba(255, 255, 255, 0.08);
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--page-bg);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 40px 20px;
+      box-sizing: border-box;
+    }
+
+    /* ---------- Dialog ---------- */
+
+    .dialog {
+      width: 400px;
+      background-color: var(--dialog-bg);
+      border-radius: 20px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      padding: 18px 20px 16px;
+      box-sizing: border-box;
+      color: var(--text-primary);
+    }
+
+    /* Header: device identity */
+    .device-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 4px 14px;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .device-icon {
+      position: relative;
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background-color: var(--dialog-bg-raised);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .device-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .status-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background-color: #6fd08c;
+      border: 2px solid var(--dialog-bg);
+    }
+
+    .device-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .device-name {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    .device-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ---------- Section labels ---------- */
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-tertiary);
+      padding: 14px 8px 6px;
+    }
+
+    /* ---------- Output list ---------- */
+
+    .output-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .output-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+
+    .output-item:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .output-item.active {
+      background-color: rgba(255, 255, 255, 0.09);
+    }
+
+    .output-item.bt-item {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      cursor: default;
+    }
+
+    .bt-item-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .output-item .icon {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .output-item.active .icon {
+      color: var(--text-primary);
+    }
+
+    .output-item .icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .output-item .label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .output-item .name {
+      font-size: 16px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .output-item .meta {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 1px;
+    }
+
+    .output-item .check {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+      color: var(--text-primary);
+      opacity: 0;
+    }
+
+    .output-item.active .check {
+      opacity: 1;
+    }
+
+    .icon-btn {
+      flex: 0 0 auto;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .icon-btn:hover {
+      background-color: rgba(224, 112, 112, 0.16);
+      color: var(--danger-color);
+    }
+
+    .icon-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ---------- Profile picker (nested under connected BT device) ---------- */
+
+    .profile-toggle-wrap {
+      padding-left: 30px;
+    }
+
+    .profile-toggle {
+      display: flex;
+      gap: 6px;
+    }
+
+    .profile-btn {
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .profile-btn svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .profile-btn:hover {
+      background-color: rgba(255, 255, 255, 0.09);
+    }
+
+    .profile-btn.active[data-profile="hq"] {
+      background-color: rgba(111, 177, 224, 0.18);
+      border-color: var(--hq-color);
+      color: var(--hq-color);
+    }
+
+    .profile-btn.active[data-profile="mic"] {
+      background-color: rgba(224, 164, 88, 0.18);
+      border-color: var(--mic-color);
+      color: var(--mic-color);
+    }
+
+    /* ---------- Available devices (connect flow) ---------- */
+
+    .available-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 8px;
+      border-radius: 10px;
+    }
+
+    .available-item .icon {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .available-item .icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .available-item .label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .available-item .name {
+      font-size: 16px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .available-item .meta {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 1px;
+    }
+
+    .connect-btn {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .connect-btn:hover {
+      background-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .empty-hint {
+      padding: 4px 8px 2px;
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="dialog" id="dialog">
+  <div class="device-row">
+    <div class="device-icon" id="deviceIcon"></div>
+    <div class="device-info">
+      <div class="device-name" id="deviceName">Bose QuietComfort QC</div>
+      <div class="device-subtitle" id="deviceSubtitle">Connected</div>
+    </div>
+  </div>
+
+  <div class="section-label">Output device</div>
+  <div class="output-list" id="outputList"></div>
+
+  <div id="availableSlot"></div>
+</div>
+
+<script>
+  const deviceIcon = document.getElementById('deviceIcon');
+  const deviceName = document.getElementById('deviceName');
+  const deviceSubtitle = document.getElementById('deviceSubtitle');
+  const outputList = document.getElementById('outputList');
+  const availableSlot = document.getElementById('availableSlot');
+
+  const headphoneIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 13V12a8 8 0 0 1 16 0v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="2.5" y="13" width="5" height="7" rx="2" fill="currentColor"/>
+        <rect x="16.5" y="13" width="5" height="7" rx="2" fill="currentColor"/>
+      </svg>`;
+
+  const speakerIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 9.5v5a1 1 0 0 0 1 1h3l4.2 3.36a.6.6 0 0 0 .97-.47V5.61a.6.6 0 0 0-.97-.47L7 8.5H4a1 1 0 0 0-1 1Z" fill="currentColor"/>
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M18 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>`;
+
+  const bluetoothIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 6.5 16 12l-8 5.5v-11L16 12 8 6.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M8 6.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>`;
+
+  const checkIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+  const closeIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>`;
+
+  const hqIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 10v4h3.5L12 17.5v-11L7.5 10H4Z" fill="currentColor"/>
+        <path d="M15.5 9a4.5 4.5 0 0 1 0 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>`;
+
+  const micIconSVG = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="9" y="3.5" width="6" height="10" rx="3" fill="currentColor"/>
+        <path d="M6 11a6 6 0 0 0 12 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M12 17v3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>`;
+
+  const devices = {
+    short: { name: 'Bose QuietComfort QC' },
+    long: { name: 'Bose QuietComfort Ultra Headphones (Second Bedroom)' }
+  };
+
+  // pairing: 'short' | 'long' | 'none'  -- which device (if any) is connected
+  // sink: 'headphones' | 'speakers'    -- which output is actively in use
+  // profile: 'hq' | 'mic'              -- remembered even while speakers are active
+  let state = {
+    pairing: 'short',
+    sink: 'headphones',
+    profile: 'hq'
+  };
+
+  function connect(variant) {
+    state.pairing = variant;
+    state.sink = 'headphones';
+    state.profile = 'hq';
+    render();
+  }
+
+  function disconnect() {
+    state.pairing = 'none';
+    state.sink = 'speakers';
+    render();
+  }
+
+  function setSink(sink) {
+    if (sink === 'headphones' && state.pairing === 'none') return;
+    state.sink = sink;
+    render();
+  }
+
+  function setProfile(profile) {
+    state.profile = profile;
+    render();
+  }
+
+  function render() {
+    const isPaired = state.pairing !== 'none';
+    if (!isPaired) state.sink = 'speakers';
+
+    const activeIsHeadphones = isPaired && state.sink === 'headphones';
+
+    // ---- Header ----
+    deviceName.textContent = activeIsHeadphones ? devices[state.pairing].name : 'Speakers Built-in Audio';
+    deviceSubtitle.textContent = activeIsHeadphones
+            ? (state.profile === 'hq' ? 'Connected · High quality audio' : 'Connected · Microphone enabled')
+            : '';
+    deviceIcon.innerHTML = activeIsHeadphones
+            ? headphoneIconSVG + '<span class="status-badge"></span>'
+            : speakerIconSVG;
+
+    // ---- Output list ----
+    let listHTML = '';
+
+    listHTML += `
+          <div class="output-item ${!activeIsHeadphones ? 'active' : ''}" data-sink="speakers">
+            <div class="icon">${speakerIconSVG}</div>
+            <div class="label">
+              <div class="name">Speakers Built-in Audio</div>
+            </div>
+            <div class="check">${checkIconSVG}</div>
+          </div>`;
+
+    if (isPaired) {
+      listHTML += `
+              <div class="output-item bt-item ${activeIsHeadphones ? 'active' : ''}">
+                <div class="bt-item-top" data-sink="headphones">
+                  <div class="icon">${headphoneIconSVG}</div>
+                  <div class="label">
+                    <div class="name">${devices[state.pairing].name}</div>
+                  </div>
+                  <div class="check">${checkIconSVG}</div>
+                  <button class="icon-btn" id="disconnectBtn" title="Disconnect">${closeIconSVG}</button>
+                </div>
+                <div class="profile-toggle-wrap" ${activeIsHeadphones ? '' : 'style="display:none"'}>
+                  <div class="profile-toggle">
+                    <button class="profile-btn ${state.profile === 'hq' ? 'active' : ''}" data-profile="hq">${hqIconSVG} High quality</button>
+                    <button class="profile-btn ${state.profile === 'mic' ? 'active' : ''}" data-profile="mic">${micIconSVG} Microphone</button>
+                  </div>
+                </div>
+              </div>`;
+    }
+
+    outputList.innerHTML = listHTML;
+
+    outputList.querySelectorAll('.output-item[data-sink]').forEach(item => {
+      item.addEventListener('click', () => setSink(item.dataset.sink));
+    });
+
+    outputList.querySelectorAll('.bt-item-top').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('#disconnectBtn')) return;
+        setSink('headphones');
+      });
+    });
+
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        disconnect();
+      });
+    }
+
+    outputList.querySelectorAll('.profile-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setProfile(btn.dataset.profile);
+      });
+    });
+
+    // ---- Available devices (connect flow) ----
+    const unpaired = Object.keys(devices).filter(key => key !== state.pairing);
+
+    if (unpaired.length > 0) {
+      const items = unpaired.map(key => `
+              <div class="available-item">
+                <div class="icon">${bluetoothIconSVG}</div>
+                <div class="label">
+                  <div class="name">${devices[key].name}</div>
+                </div>
+                <button class="connect-btn" data-connect="${key}">Connect</button>
+              </div>`).join('');
+
+      availableSlot.innerHTML = `
+              <div class="section-label">Available devices</div>
+              ${items}`;
+
+      availableSlot.querySelectorAll('[data-connect]').forEach(btn => {
+        btn.addEventListener('click', () => connect(btn.dataset.connect));
+      });
+    } else {
+      availableSlot.innerHTML = '';
+    }
+  }
+
+  render();
+</script>
+
+</body>
+</html>
