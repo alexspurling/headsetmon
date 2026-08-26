@@ -20,6 +20,7 @@ class DeskClock extends Desklet.Desklet {
         this._defaultSinkName = null;
         this._sinkIndexToName = {};
         this._cards = {};
+        this._knownBtCards = {};
 
         // ─── Container ─────────────────────────────────────────
         this._container = new St.BoxLayout({
@@ -108,6 +109,8 @@ class DeskClock extends Desklet.Desklet {
         let btIconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
         btIconWrap.add_actor(btIconWidget);
 
+        this._connectBtn = new St.Button({ label: "Connect", style_class: "connect-btn" });
+        this._connectBtn.connect("clicked", () => this._onReconnect());
         this._disconnectBtn = new St.Button({ style_class: "icon-btn" });
         let closeIcon = new St.Icon({ icon_name: "window-close-symbolic", icon_size: 14 });
         this._disconnectBtn.add_actor(closeIcon);
@@ -118,9 +121,10 @@ class DeskClock extends Desklet.Desklet {
         topLayout.add_actor(btIconWrap);
         topLayout.add_actor(btLabelBox);
         topLayout.add_actor(this._btCheck);
+        topLayout.add_actor(this._connectBtn);
         topLayout.add_actor(this._disconnectBtn);
+
         this._btItemTop.add_actor(topLayout);
-        this._btItemTop.connect("clicked", () => this._selectSink("headphones"));
         this._btItem.add_actor(this._btItemTop);
 
         // Profile toggle (nested under headphone)
@@ -246,6 +250,13 @@ class DeskClock extends Desklet.Desklet {
                                 active_profile: evt.active_profile,
                                 profiles: evt.profiles2
                             };
+                            if (evt.proplist && evt.proplist["device.bus"] === "bluetooth") {
+                                this._knownBtCards[evt.index] = {
+                                    name: evt.name,
+                                    description: evt.proplist["device.description"] || evt.name,
+                                    mac: evt.proplist["device.string"]
+                                };
+                            }
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.name = evt.new;
@@ -264,6 +275,12 @@ class DeskClock extends Desklet.Desklet {
                             let name = this._sinkIndexToName[evt.index];
                             delete this._sinks[name];
                             delete this._sinkIndexToName[evt.index];
+                            this._fullUpdate();
+                        }
+                    } else if (event === "remove" && on === "card") {
+                        if (this._cards[evt.index]) {
+                            delete this._knownBtCards[evt.index];
+                            delete this._cards[evt.index];
                             this._fullUpdate();
                         }
                     }
@@ -288,7 +305,11 @@ class DeskClock extends Desklet.Desklet {
         return card && card.properties && card.properties["device.bus"] === "bluetooth";
     }
 
-    _getHeadphoneSink() {
+    _getAnyBluetoothSink() {
+        return Object.values(this._sinks).find(sink => this._isBluetoothSink(sink));
+    }
+
+    _getActiveBluetoothSink() {
         return Object.values(this._sinks).find(
             sink => sink.name === this._defaultSinkName && this._isBluetoothSink(sink)
         );
@@ -304,13 +325,13 @@ class DeskClock extends Desklet.Desklet {
         let activeSink = Object.values(this._sinks).find(
             s => s.name === this._defaultSinkName
         );
-        let headphoneSink = this._getHeadphoneSink();
+        let headphoneSink = this._getAnyBluetoothSink();
         let builtinSink = this._getBuiltinSink();
 
-        let isHeadphoneActive = !!headphoneSink && activeSink && activeSink.name === headphoneSink.name;
+        let activeSinkIsBt = !!activeSink && this._isBluetoothSink(activeSink);
 
         // ── Header ──
-        if (isHeadphoneActive) {
+        if (activeSinkIsBt) {
             this._deviceIcon.set_icon_name("audio-headphones");
             this._deviceName.set_text(headphoneSink.description || "Headset");
             this._statusBadge.show();
@@ -336,7 +357,7 @@ class DeskClock extends Desklet.Desklet {
         this._speakersNameLabel.set_text(
             builtinSink ? (builtinSink.description || "Speakers Built-in Audio") : "Speakers Built-in Audio"
         );
-        if (!isHeadphoneActive) {
+        if (!activeSinkIsBt) {
             this._speakersItem.set_style_class_name("output-item active");
             this._speakersCheck.set_icon_name("object-select-symbolic");
         } else {
@@ -345,8 +366,12 @@ class DeskClock extends Desklet.Desklet {
         }
 
         // ── Output list: headphone ──
+        let btKnown = false;
+        let btConnected = !!headphoneSink;
+
         if (headphoneSink) {
             this._btNameLabel.set_text(headphoneSink.description || "Headset");
+            btKnown = true;
 
             let card = this._cards[headphoneSink.card];
             let profileDesc = card && card.active_profile && card.active_profile.description;
@@ -357,32 +382,48 @@ class DeskClock extends Desklet.Desklet {
             } else {
                 this._btMetaLabel.set_text(profileDesc || "");
             }
+        } else {
+            // Check known BT cards (disconnected state)
+            let btCardIdx = Object.keys(this._knownBtCards)[0];
+            if (btCardIdx) {
+                let btCard = this._knownBtCards[btCardIdx];
+                this._btNameLabel.set_text(btCard.description || btCard.name || "Bluetooth device");
+                this._btMetaLabel.set_text("Disconnected");
+                btKnown = true;
+            }
+        }
 
-            if (isHeadphoneActive) {
+        if (btKnown) {
+            if (activeSinkIsBt && btConnected) {
                 this._btItem.set_style_class_name("output-item bt-item active");
                 this._btCheck.set_icon_name("object-select-symbolic");
-
-                // Show profile toggle when headphone is the active sink
                 this._profileToggleWrap.show();
+                this._disconnectBtn.show();
+                this._connectBtn.hide();
 
-                // Highlight the active profile button
+                let card = this._cards[headphoneSink.card];
                 if (card && card.active_profile) {
                     if (card.active_profile.name === HIGH_QUALITY_PROFILE) {
                         this._hqBtn.set_style_class_name("profile-btn hq active");
-                        this._hqBtn.set_data("profile", "hq");
                         this._micBtn.set_style_class_name("profile-btn mic");
-                        this._micBtn.set_data("profile", "");
                     } else if (card.active_profile.name === HEADSET_PROFILE) {
                         this._micBtn.set_style_class_name("profile-btn mic active");
-                        this._micBtn.set_data("profile", "mic");
                         this._hqBtn.set_style_class_name("profile-btn hq");
-                        this._hqBtn.set_data("profile", "");
                     }
                 }
-            } else {
+            } else if (btConnected) {
                 this._btItem.set_style_class_name("output-item bt-item");
                 this._btCheck.set_icon_name("");
                 this._profileToggleWrap.hide();
+                this._disconnectBtn.show();
+                this._connectBtn.hide();
+            } else {
+                // Disconnected — no sink but known card
+                this._btItem.set_style_class_name("output-item bt-item");
+                this._btCheck.set_icon_name("");
+                this._profileToggleWrap.hide();
+                this._disconnectBtn.hide();
+                this._connectBtn.show();
             }
 
             this._btItem.show();
@@ -407,9 +448,9 @@ class DeskClock extends Desklet.Desklet {
             }
         }
 
-        // Remove cards that already have a sink
-        for (let sink of Object.values(this._sinks)) {
-            delete btCards[sink.card];
+        // Remove cards that are already known (shown in output list)
+        for (let idx in this._knownBtCards) {
+            delete btCards[idx];
         }
 
         let cardKeys = Object.keys(btCards);
@@ -457,7 +498,7 @@ class DeskClock extends Desklet.Desklet {
 
     _selectSink(type) {
         if (type === "headphones") {
-            let headphoneSink = this._getHeadphoneSink();
+            let headphoneSink = this._getAnyBluetoothSink();
             if (headphoneSink) {
                 GLib.spawn_command_line_async(
                     "pactl set-default-sink " + headphoneSink.name
@@ -474,34 +515,52 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _onSetProfile(profile) {
-        let headphoneSink = this._getHeadphoneSink();
+        let headphoneSink = this._getActiveBluetoothSink();
         if (!headphoneSink) return;
 
         let card = this._cards[headphoneSink.card];
         if (!card) return;
 
         if (profile === "hq") {
-            GLib.spawn_command_line_async(
-                "pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE
-            );
+            GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE);
         } else if (profile === "mic") {
-            GLib.spawn_command_line_async(
-                "pactl set-card-profile " + card.name + " " + HEADSET_PROFILE
-            );
+            GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HEADSET_PROFILE);
         }
     }
 
+    _onBtItemClicked() {
+        // If disconnected, reconnect; otherwise switch to it
+        if (this._getAnyBluetoothSink()) {
+            this._selectSink("headphones");
+        } else {
+            this._onReconnect();
+        }
+    }
+
+    _onReconnect() {
+        let btCardIdx = Object.keys(this._knownBtCards)[0];
+        if (!btCardIdx) return;
+
+        let btCard = this._knownBtCards[btCardIdx];
+        GLib.spawn_command_line_async(
+            "pactl set-card-profile " + btCard.name + " " + HIGH_QUALITY_PROFILE
+        );
+
+        // Remove from known cards so it reappears in available if connection fails
+        delete this._knownBtCards[btCardIdx];
+    }
+
     _onDisconnect() {
-        let headphoneSink = this._getHeadphoneSink();
+        let headphoneSink = this._getActiveBluetoothSink();
         if (!headphoneSink) return;
 
         let card = this._cards[headphoneSink.card];
-        if (!card) return;
+        if (!card || !card.properties) return;
 
-        // Set profile to "off" to disconnect the Bluetooth device
-        GLib.spawn_command_line_async(
-            "pactl set-card-profile " + card.name + " off"
-        );
+        let mac = card.properties["device.string"];
+        if (mac) {
+            GLib.spawn_command_line_async("bluetoothctl disconnect " + mac);
+        }
     }
 
     _onConnectDevice(cardIdx) {
@@ -509,9 +568,7 @@ class DeskClock extends Desklet.Desklet {
         if (!card) return;
 
         // Try setting a profile to connect; a2dp-sink is typical for audio
-        GLib.spawn_command_line_async(
-            "pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE
-        );
+        GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE);
     }
 
     on_desklet_removed(deleteConfig) {
