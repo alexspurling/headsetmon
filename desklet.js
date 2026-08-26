@@ -126,6 +126,7 @@ class DeskClock extends Desklet.Desklet {
 
         this._btItemTop.add_actor(topLayout);
         this._btItem.add_actor(this._btItemTop);
+        this._btItemTop.connect("clicked", () => this._onBtItemClicked());
 
         // Profile toggle (nested under headphone)
         this._profileToggleWrap = new St.Widget({ style_class: "profile-toggle-wrap" });
