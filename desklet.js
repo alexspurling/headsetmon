@@ -239,6 +239,7 @@ class DeskClock extends Desklet.Desklet {
                             this._defaultSinkName = evt.new;
                             this._fullUpdate();
                         } else if (on === "card" && event === "new") {
+                            log("headsetmon: card new idx=" + evt.index + " name=" + evt.name + " bus=" + (evt.proplist ? evt.proplist["device.bus"] : "?"));
                             this._cards[evt.index] = {
                                 name: evt.name,
                                 properties: evt.proplist,
@@ -252,14 +253,19 @@ class DeskClock extends Desklet.Desklet {
                                     mac: evt.proplist["device.string"]
                                 };
                             }
+                            this._fullUpdate();
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
+                            log("headsetmon: card change active_profile.name -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.name = evt.new;
                             }
+                            this._fullUpdate();
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.description") {
+                            log("headsetmon: card change active_profile.description -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.description = evt.new;
                             }
+                            this._fullUpdate();
                         }
 
                         if (on === "sink" && evt.name) {
@@ -317,6 +323,7 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _updateSinkDisplay() {
+        try {
         let activeSink = Object.values(this._sinks).find(
             s => s.name === this._defaultSinkName
         );
@@ -571,30 +578,29 @@ class DeskClock extends Desklet.Desklet {
 
             // Top-row click: switch to this device or reconnect
             topRow.connect("clicked", () => {
-                if (isConnected) {
-                    // Switch default sink to this device
-                    if (dev.type === "pactl" && dev.cardName) {
-                        for (let si in this._sinks) {
-                            let s = this._sinks[si];
-                            let sc = this._cards[s.card];
-                            if (sc && sc.name === dev.cardName) {
-                                GLib.spawn_command_line_async("pactl set-default-sink " + s.name);
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    this._disconnectedBtMac = dev.mac;
-                    if (dev.type === "pactl" && dev.cardName) {
-                        GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HIGH_QUALITY_PROFILE);
+                try {
+                    if (isConnected) {
+                        log("headsetmon: clicking connected device, calling _selectSink('headphones')");
+                        this._selectSink("headphones");
                     } else {
-                        GLib.spawn_command_line_async("bluetoothctl connect " + dev.mac);
+                        log("headsetmon: clicking disconnected device, reconnecting " + dev.mac);
+                        this._disconnectedBtMac = dev.mac;
+                        if (dev.type === "pactl" && dev.cardName) {
+                            GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HIGH_QUALITY_PROFILE);
+                        } else {
+                            GLib.spawn_command_line_async("bluetoothctl connect " + dev.mac);
+                        }
+                        this._fullUpdate();
                     }
+                } catch (e) {
+                    log("headsetmon: ERROR in topRow click: " + e + " " + e.stack);
                 }
-                this._fullUpdate();
             });
 
             this._btDynamicContainer.add_actor(btItem);
+        }
+        } catch (e) {
+            log("headsetmon: ERROR in _updateSinkDisplay: " + e + " " + e.stack);
         }
     }
 
@@ -603,6 +609,7 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _updateAvailableDevices() {
+        try {
         // Find Bluetooth cards that don't have a corresponding sink
         let btCards = {};
         for (let idx in this._cards) {
@@ -658,6 +665,9 @@ class DeskClock extends Desklet.Desklet {
             this._availableSectionLabel.hide();
             this._availableContainer.destroy_all_children();
         }
+    } catch (e) {
+        log("headsetmon: ERROR in _updateAvailableDevices: " + e + " " + e.stack);
+    }
     }
 
     _selectSink(type) {
@@ -738,6 +748,13 @@ class DeskClock extends Desklet.Desklet {
                 );
                 this._disconnectedBtMac = null;
             }
+
+            // Schedule a refresh after reconnection to pick up PA state changes
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
+                log("headsetmon: delayed refresh after reconnect");
+                this._fullUpdate();
+                return false;
+            });
         } catch (e) {
             log("headsetmon: ERROR in _onReconnect: " + e);
         }
