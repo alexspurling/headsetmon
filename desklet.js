@@ -335,30 +335,78 @@ class DeskClock extends Desklet.Desklet {
         );
     }
 
-    _getSinkDisplay(sinkId, sink, activeSink) {
+    _getSinkDisplay(sinkId, sink, isActiveSink) {
 
+        // Icon
+        let isBluetoothSink = this._isBluetoothSink(sink);
+        let iconName = isBluetoothSink ? "audio-headphones" : "audio-speakers";
+        let sinkIcon = new St.Icon({ icon_name: iconName, icon_size: 18 });
+        let sinkIconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
+        sinkIconWrap.add_actor(sinkIcon);
+
+        // Label
         let sinkLabelBox = new St.BoxLayout({ vertical: true, style_class: "label", x_expand: true });
         let sinkNameLabel = new St.Label({ text: sink.description, style_class: "name" });
-
-        let speakersIcon = new St.Icon({ icon_name: "audio-speakers-symbolic", icon_size: 18 });
-        let speakersIconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
-        speakersIconWrap.add_actor(speakersIcon);
-
         sinkLabelBox.add_actor(sinkNameLabel);
-        let sinkContainer = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE, x_fill: true });
-        let speakersLayout = new St.BoxLayout({ style_class: "output-item-layout" });
-        speakersLayout.add_actor(speakersIconWrap);
-        speakersLayout.add_actor(sinkLabelBox);
+
+        // Sink display layout
+        let sinkLabelLayout = new St.BoxLayout({ style_class: "output-item-layout" });
+        sinkLabelLayout.add_actor(sinkIconWrap);
+        sinkLabelLayout.add_actor(sinkLabelBox);
 
         // If sink is active, display a checkbox icon
-        if (activeSink) {
+        if (isActiveSink) {
             let checkIcon = new St.Icon({ icon_name: "object-select-symbolic", icon_size: 16 });
-            speakersLayout.add_actor(checkIcon);
+            sinkLabelLayout.add_actor(checkIcon);
         }
-        sinkContainer.add_actor(speakersLayout);
+
+        // Main container for the sink is a button. Clicking allows the user to switch the active sink
+        let sinkContainer = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE, x_fill: true });
+        sinkContainer.add_actor(sinkLabelLayout);
         sinkContainer.connect("clicked", () => this._selectSink(sinkId));
 
         return sinkContainer;
+    }
+
+    _updateHeader(activeSink) {
+        this._deviceName.set_text(activeSink.description);
+
+        if (this._isBluetoothSink(activeSink)) {
+            this._deviceIcon.set_icon_name("audio-headphones");
+            // Show the green connected badge if this is a bluetooth sink
+            this._statusBadge.show();
+
+            let card = this._cards[activeSink.card];
+            let profileDesc = card && card.active_profile && card.active_profile.description;
+            if (profileDesc && profileDesc.indexOf("High Fidelity") !== -1) {
+                this._deviceSubtitle.set_text("Connected · High quality audio");
+            } else if (profileDesc && profileDesc.indexOf("Headset") !== -1) {
+                this._deviceSubtitle.set_text("Connected · Microphone enabled");
+            } else {
+                this._deviceSubtitle.set_text(profileDesc ? "Connected · " + profileDesc : "Connected");
+            }
+            this._deviceSubtitle.show();
+        } else {
+            this._deviceIcon.set_icon_name("audio-speakers");
+            this._statusBadge.hide();
+            this._deviceSubtitle.hide();
+        }
+    }
+
+    _updateAvailableSinkList() {
+        // Remove all current items from the output list
+        this._outputList.destroy_all_children();
+
+        for (const [sinkId, sink] of this._sinks) {
+            let name = sink.name;
+            let card = sink.card;
+            let description = sink.description;
+            console.log("Sink: ", sinkId, name, card, description);
+
+            let isActiveSink = name === this._defaultSinkName;
+
+            this._outputList.add_actor(this._getSinkDisplay(sinkId, sink, isActiveSink));
+        }
     }
 
     _updateSinkDisplay() {
@@ -366,49 +414,12 @@ class DeskClock extends Desklet.Desklet {
             let activeSink = Array.from(this._sinks.values()).find(
                 s => s.name === this._defaultSinkName
             );
-            // let headphoneSink = this._getAnyBluetoothSink();
-            // let builtinSink = this._getBuiltinSink();
-
-            let activeSinkIsBt = !!activeSink && this._isBluetoothSink(activeSink);
-
-            this._deviceName.set_text(activeSink.description);
 
             // ── Header ──
-            if (activeSinkIsBt) {
-                this._deviceIcon.set_icon_name("audio-headphones");
-                this._statusBadge.show();
+            this._updateHeader(activeSink);
 
-                let card = this._cards[activeSink.card];
-                let profileDesc = card && card.active_profile && card.active_profile.description;
-                if (profileDesc && profileDesc.indexOf("High Fidelity") !== -1) {
-                    this._deviceSubtitle.set_text("Connected · High quality audio");
-                } else if (profileDesc && profileDesc.indexOf("Headset") !== -1) {
-                    this._deviceSubtitle.set_text("Connected · Microphone enabled");
-                } else {
-                    this._deviceSubtitle.set_text(profileDesc ? "Connected · " + profileDesc : "Connected");
-                }
-                this._deviceSubtitle.show();
-            } else {
-                this._deviceIcon.set_icon_name("audio-speakers");
-                this._statusBadge.hide();
-                this._deviceSubtitle.hide();
-            }
-
-            console.log("Default sink is: ", activeSink);
-
-            // Remove all current items from the output list
-            this._outputList.destroy_all_children();
-
-            for (const [sinkId, sink] of this._sinks) {
-                let name = sink.name;
-                let card = sink.card;
-                let description = sink.description;
-                console.log("Sink: ", sinkId, name, card, description);
-
-                let isActiveSink = name === this._defaultSinkName;
-
-                this._outputList.add_actor(this._getSinkDisplay(sinkId, sink, isActiveSink));
-            }
+            // ── Available sinks list ──
+            this._updateAvailableSinkList();
 
             // ── Output list: speakers ──
             // this._speakersNameLabel.set_text(

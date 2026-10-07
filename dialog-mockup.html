@@ -356,7 +356,7 @@
     </div>
   </div>
 
-  <div class="section-label">Output device</div>
+  <div class="section-label">Available outputs</div>
   <div class="output-list" id="outputList"></div>
 
   <div id="availableSlot"></div>
@@ -525,11 +525,11 @@
       });
     });
 
-    // ---- Available devices (connect flow) ----
-    const unpaired = Object.keys(devices).filter(key => key !== state.pairing);
+    // ---- Other devices (connect flow) ----
+    const otherDevices = Object.keys(devices).filter(key => key !== state.pairing);
 
-    if (unpaired.length > 0) {
-      const items = unpaired.map(key => `
+    if (otherDevices.length > 0) {
+      const otherDevicesHtml = otherDevices.map(key => `
               <div class="available-item">
                 <div class="icon">${bluetoothIconSVG}</div>
                 <div class="label">
@@ -539,8 +539,8 @@
               </div>`).join('');
 
       availableSlot.innerHTML = `
-              <div class="section-label">Available devices</div>
-              ${items}`;
+              <div class="section-label">Other devices</div>
+              ${otherDevicesHtml}`;
 
       availableSlot.querySelectorAll('[data-connect]').forEach(btn => {
         btn.addEventListener('click', () => connect(btn.dataset.connect));
