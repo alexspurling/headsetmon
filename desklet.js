@@ -337,7 +337,7 @@ class DeskClock extends Desklet.Desklet {
 
     _getSinkDisplay(sinkId, sink, activeSink) {
 
-        let sinkLabelBox = new St.BoxLayout({ vertical: true, style_class: "label" });
+        let sinkLabelBox = new St.BoxLayout({ vertical: true, style_class: "label", x_expand: true });
         let sinkNameLabel = new St.Label({ text: sink.description, style_class: "name" });
 
         let speakersIcon = new St.Icon({ icon_name: "audio-speakers-symbolic", icon_size: 18 });
@@ -345,7 +345,7 @@ class DeskClock extends Desklet.Desklet {
         speakersIconWrap.add_actor(speakersIcon);
 
         sinkLabelBox.add_actor(sinkNameLabel);
-        let sinkContainer = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE });
+        let sinkContainer = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE, x_fill: true });
         let speakersLayout = new St.BoxLayout({ style_class: "output-item-layout" });
         speakersLayout.add_actor(speakersIconWrap);
         speakersLayout.add_actor(sinkLabelBox);
