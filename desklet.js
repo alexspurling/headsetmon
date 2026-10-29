@@ -358,6 +358,17 @@ class DeskClock extends Desklet.Desklet {
         if (isActiveSink) {
             let checkIcon = new St.Icon({ icon_name: "object-select-symbolic", icon_size: 16 });
             sinkLabelLayout.add_actor(checkIcon);
+
+            // The active Bluetooth device also gets a disconnect button next to the tick
+            if (isBluetoothSink) {
+                let disconnectBtn = new St.Button({
+                    style_class: "icon-btn",
+                    button_mask: St.ButtonMask.ONE
+                });
+                disconnectBtn.add_actor(new St.Icon({ icon_name: "window-close-symbolic", icon_size: 14 }));
+                disconnectBtn.connect("clicked", () => this._onDisconnect());
+                sinkLabelLayout.add_actor(disconnectBtn);
+            }
         }
 
         let card = this._cards[sink.card];
