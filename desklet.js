@@ -360,12 +360,80 @@ class DeskClock extends Desklet.Desklet {
             sinkLabelLayout.add_actor(checkIcon);
         }
 
+        let card = this._cards[sink.card];
+        let showProfiles = this._showsProfileToggle(sink, card);
+
         // Main container for the sink is a button. Clicking allows the user to switch the active sink
-        let sinkContainer = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE, x_fill: true });
+        let sinkContainer = new St.Button({
+            style_class: showProfiles ? "bt-item-top" : "output-item",
+            button_mask: St.ButtonMask.ONE,
+            x_fill: true,
+            x_expand: true
+        });
         sinkContainer.add_actor(sinkLabelLayout);
         sinkContainer.connect("clicked", () => this._selectSink(sinkId));
 
-        return sinkContainer;
+        if (!showProfiles) {
+            return sinkContainer;
+        }
+
+        // Bluetooth device with selectable profiles: keep the sink row and add a profile picker beneath it
+        let sinkItem = new St.BoxLayout({ vertical: true, style_class: "bt-item", x_expand: true });
+        if (isActiveSink) {
+            sinkItem.add_style_class_name("active");
+        }
+        sinkItem.add_actor(sinkContainer);
+        sinkItem.add_actor(this._buildProfileToggle(card));
+
+        return sinkItem;
+    }
+
+    _showsProfileToggle(sink, card) {
+        if (!this._isBluetoothSink(sink) || !card || !card.profiles) {
+            return false;
+        }
+        let hasHighQuality = card.profiles.some(p => p.name === HIGH_QUALITY_PROFILE);
+        let hasHeadset = card.profiles.some(p => p.name === HEADSET_PROFILE);
+        return hasHighQuality && hasHeadset;
+    }
+
+    _buildProfileToggle(card) {
+        let activeProfileName = card.active_profile && card.active_profile.name;
+
+        let profiles = [
+            { name: HIGH_QUALITY_PROFILE, cssClass: "hq", label: "High quality", icon: "audio-speakers-symbolic" },
+            { name: HEADSET_PROFILE, cssClass: "mic", label: "Microphone", icon: "audio-input-microphone-symbolic" }
+        ];
+
+        let profileToggleWrap = new St.BoxLayout({ vertical: true, style_class: "profile-toggle-wrap", x_expand: true });
+        let profileToggle = new St.BoxLayout({ style_class: "profile-toggle", x_expand: true });
+
+        for (const profile of profiles) {
+            let button = new St.Button({
+                style_class: "profile-btn " + profile.cssClass,
+                button_mask: St.ButtonMask.ONE,
+                x_expand: true
+            });
+            if (activeProfileName === profile.name) {
+                button.add_style_class_name("active");
+            }
+
+            let buttonContent = new St.BoxLayout({ style_class: "profile-btn-content" });
+            buttonContent.add_actor(new St.Icon({ icon_name: profile.icon, icon_size: 17 }));
+            buttonContent.add_actor(new St.Label({ text: profile.label }));
+            button.add_actor(buttonContent);
+
+            button.connect("clicked", () => this._setCardProfile(card, profile.name));
+            profileToggle.add_actor(button);
+        }
+
+        profileToggleWrap.add_actor(profileToggle);
+        return profileToggleWrap;
+    }
+
+    _setCardProfile(card, profileName) {
+        if (!card || !card.name) return;
+        GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + profileName);
     }
 
     _updateHeader(activeSink) {
@@ -769,9 +837,9 @@ class DeskClock extends Desklet.Desklet {
         if (!card) return;
 
         if (profile === "hq") {
-            GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE);
+            this._setCardProfile(card, HIGH_QUALITY_PROFILE);
         } else if (profile === "mic") {
-            GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HEADSET_PROFILE);
+            this._setCardProfile(card, HEADSET_PROFILE);
         }
     }
 
