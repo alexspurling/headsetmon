@@ -22,6 +22,7 @@ class DeskClock extends Desklet.Desklet {
         this._sinkIndexToName = {};
         this._cards = {};
         this._knownBtCards = {};
+        this._bondedDevices = [];
         this._disconnectedBtMac = null;
 
         // ─── Container ─────────────────────────────────────────
@@ -80,78 +81,6 @@ class DeskClock extends Desklet.Desklet {
             style_class: "output-list"
         });
 
-        // Speakers item
-        // this._speakersCheck = new St.Icon({ icon_name: "object-select-symbolic", icon_size: 16 });
-        //
-        // let speakersLabelBox = new St.BoxLayout({ vertical: true, style_class: "label" });
-        // this._speakersNameLabel = new St.Label({ text: "Speakers Built-in Audio", style_class: "name" });
-        //
-        // let speakersIcon = new St.Icon({ icon_name: "audio-speakers-symbolic", icon_size: 18 });
-        // let speakersIconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
-        // speakersIconWrap.add_actor(speakersIcon);
-        //
-        // speakersLabelBox.add_actor(this._speakersNameLabel);
-        // this._speakersItem = new St.Button({ style_class: "output-item", button_mask: St.ButtonMask.ONE });
-        // let speakersLayout = new St.BoxLayout({ style_class: "output-item-layout" });
-        // speakersLayout.add_actor(speakersIconWrap);
-        // speakersLayout.add_actor(speakersLabelBox);
-        // speakersLayout.add_actor(this._speakersCheck);
-        // this._speakersItem.add_actor(speakersLayout);
-        // this._speakersItem.connect("clicked", () => this._selectSink("speakers"));
-        // this._outputList.add_actor(this._speakersItem);
-        //
-        //
-        // this._btCheck = new St.Icon({ icon_name: "object-select-symbolic", icon_size: 16 });
-        //
-        // let btLabelBox = new St.BoxLayout({ vertical: true, style_class: "label" });
-        // this._btNameLabel = new St.Label({ style_class: "name" });
-        // this._btMetaLabel = new St.Label({ style_class: "meta" });
-        // btLabelBox.add_actor(this._btNameLabel);
-        // btLabelBox.add_actor(this._btMetaLabel);
-        //
-        // let btIconWidget = new St.Icon({ icon_name: "audio-headphones-symbolic", icon_size: 18 });
-        // let btIconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
-        // btIconWrap.add_actor(btIconWidget);
-        //
-        // this._connectBtn = new St.Button({ label: "Connect", style_class: "connect-btn" });
-        // this._connectBtn.connect("clicked", () => this._onReconnect());
-        // this._disconnectBtn = new St.Button({ style_class: "icon-btn" });
-        // let closeIcon = new St.Icon({ icon_name: "window-close-symbolic", icon_size: 14 });
-        // this._disconnectBtn.add_actor(closeIcon);
-        // this._disconnectBtn.connect("clicked", () => this._onDisconnect());
-        //
-        // let topLayout = new St.BoxLayout({ style_class: "output-item-layout" });
-        // topLayout.add_actor(btIconWrap);
-        // topLayout.add_actor(btLabelBox);
-        // topLayout.add_actor(this._btCheck);
-        // topLayout.add_actor(this._connectBtn);
-        // topLayout.add_actor(this._disconnectBtn);
-        //
-        // // Profile toggle (nested under headphone)
-        // this._profileToggleWrap = new St.Widget({ style_class: "profile-toggle-wrap" });
-        // this._profileToggle = new St.BoxLayout({ style_class: "profile-toggle" });
-        //
-        // this._hqBtn = new St.Button({ style_class: "profile-btn", button_mask: St.ButtonMask.ONE });
-        // let hqBtnLayout = new St.BoxLayout();
-        // let hqIcon = new St.Icon({ icon_name: "audio-speakers-symbolic", icon_size: 17 });
-        // hqBtnLayout.add_actor(hqIcon);
-        // hqBtnLayout.add_actor(new St.Label({ text: " High quality" }));
-        // this._hqBtn.add_actor(hqBtnLayout);
-        // this._hqBtn.connect("clicked", () => this._onSetProfile("hq"));
-        //
-        // this._micBtn = new St.Button({ style_class: "profile-btn", button_mask: St.ButtonMask.ONE });
-        // let micBtnLayout = new St.BoxLayout();
-        // let micIcon = new St.Icon({ icon_name: "audio-input-microphone-symbolic", icon_size: 17 });
-        // micBtnLayout.add_actor(micIcon);
-        // micBtnLayout.add_actor(new St.Label({ text: " Microphone" }));
-        // this._micBtn.add_actor(micBtnLayout);
-        // this._micBtn.connect("clicked", () => this._onSetProfile("mic"));
-        //
-        // this._profileToggle.add_actor(this._hqBtn);
-        // this._profileToggle.add_actor(this._micBtn);
-        // this._profileToggleWrap.add_actor(this._profileToggle);
-        // this._profileToggleWrap.hide();
-
         this._btDynamicContainer = new St.BoxLayout({ vertical: true });
         this._outputList.add_actor(this._btDynamicContainer);
         this._container.add_actor(this._outputList);
@@ -159,7 +88,7 @@ class DeskClock extends Desklet.Desklet {
         // ─── Available devices section ──────────────────────────
         this._availableSlot = new St.BoxLayout({ vertical: true });
         this._availableSectionLabel = new St.Label({
-            text: "Available devices",
+            text: "Other Devices",
             style_class: "section-label"
         });
         this._availableSlot.add_actor(this._availableSectionLabel);
@@ -201,6 +130,7 @@ class DeskClock extends Desklet.Desklet {
             this._readPulseAudioEvent();
 
             log("headsetmon: Running initial fullUpdate");
+            this._readBondedDevices();
             this._fullUpdate();
         } catch (e) {
             log("Error calling pulseAudio: " + e);
@@ -262,6 +192,7 @@ class DeskClock extends Desklet.Desklet {
                                     description: evt.proplist["device.description"] || evt.name,
                                     mac: evt.proplist["device.string"]
                                 };
+                                this._readBondedDevices();
                             }
                             this._fullUpdate();
                         } else if (on === "card" && event === "change" && evt.prop === "active_profile.name") {
@@ -293,8 +224,10 @@ class DeskClock extends Desklet.Desklet {
                         }
                     } else if (event === "remove" && on === "card") {
                         if (this._cards[evt.index]) {
+                            let wasBluetooth = this._isBluetoothCard(this._cards[evt.index]);
                             delete this._knownBtCards[evt.index];
                             delete this._cards[evt.index];
+                            if (wasBluetooth) this._readBondedDevices();
                             this._fullUpdate();
                         }
                     }
@@ -313,10 +246,13 @@ class DeskClock extends Desklet.Desklet {
         this._updateAvailableDevices();
     }
 
+    _isBluetoothCard(card) {
+        return !!(card && card.properties && card.properties["device.bus"] === "bluetooth");
+    }
+
     _isBluetoothSink(sink) {
         if (!sink) return false;
-        let card = this._cards[sink.card];
-        return card && card.properties && card.properties["device.bus"] === "bluetooth";
+        return this._isBluetoothCard(this._cards[sink.card]);
     }
 
     _getAnyBluetoothSink() {
@@ -499,251 +435,7 @@ class DeskClock extends Desklet.Desklet {
 
             // ── Available sinks list ──
             this._updateAvailableSinkList();
-
-            // ── Output list: speakers ──
-            // this._speakersNameLabel.set_text(
-            //     builtinSink ? (builtinSink.description || "Speakers Built-in Audio") : "Speakers Built-in Audio"
-            // );
-            // if (!activeSinkIsBt) {
-            //     this._speakersItem.set_style_class_name("output-item active");
-            //     this._speakersCheck.set_icon_name("object-select-symbolic");
-            // } else {
-            //     this._speakersItem.set_style_class_name("output-item");
-            //     this._speakersCheck.set_icon_name("");
-            // }
-
-
-            // ── Output list: bluetooth devices ──
-
-            // this._btDynamicContainer.destroy_all_children();
-            // this._btDynamicContainer.show();
-            // log("headsetmon: Listing bonded devices...");
-            // let devicesToShow = [];
-            // let connectedBtMac = null;
-            //
-            // // Determine connected BT MAC and look up card info
-            // if (headphoneSink) {
-            //     let card = this._cards[headphoneSink.card];
-            //     if (card && card.properties) {
-            //         connectedBtMac = card.properties["device.string"];
-            //     }
-            // }
-            //
-            // // Build device entries: known PA cards first, then bonded
-            // for (let idx in this._knownBtCards) {
-            //     let c = this._knownBtCards[idx];
-            //     let mac = c.mac;
-            //     // Look up card info for profile support
-            //     let card = null;
-            //     for (let ci in this._cards) {
-            //         if (this._cards[ci].name === c.name) {
-            //             card = this._cards[ci];
-            //             break;
-            //         }
-            //     }
-            //     let microphoneAvail = false;
-            //     let hqAvail = false;
-            //     if (card && card.profiles) {
-            //         microphoneAvail = card.profiles.some(p => p.name === HEADSET_PROFILE && p.available === 1);
-            //         hqAvail = card.profiles.some(p => p.name === HIGH_QUALITY_PROFILE && p.available === 1);
-            //     }
-            //     if (mac && !devicesToShow.some(d => d.mac === mac)) {
-            //         devicesToShow.push({
-            //             name: c.description || c.name,
-            //             mac: mac,
-            //             type: "pactl",
-            //             cardName: c.name,
-            //             card: card,
-            //             microphoneAvail: microphoneAvail,
-            //             hqAvail: hqAvail
-            //         });
-            //     }
-            // }
-            //
-            // // Add bonded bluetooth devices
-            // try {
-            //     let [ok, stdoutBytes, stderrBytes, exitStatus] = GLib.spawn_command_line_sync(
-            //         "bluetoothctl devices Bonded"
-            //     );
-            //     if (stdoutBytes && stdoutBytes.length > 0) {
-            //         let text = "";
-            //         try { text = new TextDecoder().decode(stdoutBytes); }
-            //         catch (_) { text = String.fromCharCode.apply(null, stdoutBytes); }
-            //         for (let line of text.split('\n')) {
-            //             if (line.trim() === "") continue;
-            //             let parts = line.split(' ');
-            //             let mac = parts[1];
-            //             let name = parts.slice(2).join(' ');
-            //             if (mac && !devicesToShow.some(d => d.mac === mac)) {
-            //                 devicesToShow.push({ name: name || mac, mac: mac, type: "bluetoothctl" });
-            //             }
-            //         }
-            //     }
-            // } catch (e) {
-            //     log("headsetmon: error reading bluetoothctl devices Bonded: " + e);
-            // }
-            //
-            // // Render every device identically
-            // for (let dev of devicesToShow) {
-            //     let isActive = dev.mac === connectedBtMac && activeSinkIsBt;
-            //     let isConnected = dev.mac === connectedBtMac;
-            //
-            //     log("headsetmon: " + (isActive ? "[active] " : "") + (isConnected ? "[connected] " : "") + "device: " + dev.name + " (" + dev.mac + ")");
-            //
-            //     // Outer container: bt-item
-            //     let btItem = new St.BoxLayout({ vertical: true, style_class: "output-item bt-item" + (isActive ? " active" : "") });
-            //
-            //     // Top row
-            //     let topRow = new St.Button({ style_class: "bt-item-top", button_mask: St.ButtonMask.ONE });
-            //     let topLayout = new St.BoxLayout({ style_class: "output-item-layout" });
-            //
-            //     let iconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
-            //     let btIcon = new St.Icon({ icon_name: "audio-headphones-symbolic", icon_size: 18 });
-            //     iconWrap.add_actor(btIcon);
-            //
-            //     let labelBox = new St.BoxLayout({ vertical: true, style_class: "label" });
-            //     let nameLabel = new St.Label({ text: dev.name || "Bluetooth device", style_class: "name" });
-            //     let metaLabel = new St.Label({ text: "Disconnected", style_class: "meta" });
-            //     labelBox.add_actor(nameLabel);
-            //     labelBox.add_actor(metaLabel);
-            //
-            //     // Checkmark (only for active)
-            //     let checkIcon = new St.Icon({ icon_name: isActive ? "object-select-symbolic" : "", icon_size: 16 });
-            //
-            //     // Connect/disconnect buttons
-            //     let discBtn = new St.Button({ style_class: "icon-btn" });
-            //     let closeIcon = new St.Icon({ icon_name: "window-close-symbolic", icon_size: 14 });
-            //     discBtn.add_actor(closeIcon);
-            //     discBtn.connect("clicked", () => {
-            //         if (isConnected && isActive) {
-            //             // Disconnect
-            //             let sink = this._getActiveBluetoothSink();
-            //             if (sink) {
-            //                 let card = this._cards[sink.card];
-            //                 if (card && card.properties) {
-            //                     this._disconnectedBtMac = card.properties["device.string"];
-            //                     GLib.spawn_command_line_async("bluetoothctl disconnect " + this._disconnectedBtMac);
-            //                 }
-            //             }
-            //         }
-            //     });
-            //
-            //     let cnctBtn = new St.Button({ label: "Connect", style_class: "connect-btn" });
-            //     cnctBtn.connect("clicked", () => {
-            //         this._disconnectedBtMac = dev.mac;
-            //         if (dev.type === "pactl" && dev.cardName) {
-            //             GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HIGH_QUALITY_PROFILE);
-            //         } else {
-            //             GLib.spawn_command_line_async("bluetoothctl connect " + dev.mac);
-            //         }
-            //         this._fullUpdate();
-            //     });
-            //
-            //     // Set visibility
-            //     if (isConnected) {
-            //         discBtn.show();
-            //         cnctBtn.hide();
-            //         // Set meta text based on profile
-            //         if (dev.card && dev.card.active_profile) {
-            //             let pd = dev.card.active_profile.description;
-            //             if (pd && pd.indexOf("High Fidelity Playback") !== -1) {
-            //                 metaLabel.set_text("High quality audio");
-            //             } else if (pd && pd.indexOf("Headset Head Unit") !== -1) {
-            //                 metaLabel.set_text("Microphone enabled");
-            //             } else {
-            //                 metaLabel.set_text(pd || "Connected");
-            //             }
-            //         } else {
-            //             metaLabel.set_text("Connected");
-            //         }
-            //     } else {
-            //         discBtn.hide();
-            //         cnctBtn.show();
-            //         metaLabel.set_text("Disconnected");
-            //     }
-            //
-            //     topLayout.add_actor(iconWrap);
-            //     topLayout.add_actor(labelBox);
-            //     topLayout.add_actor(checkIcon);
-            //     topLayout.add_actor(cnctBtn);
-            //     topLayout.add_actor(discBtn);
-            //     topRow.add_actor(topLayout);
-            //     btItem.add_actor(topRow);
-            //
-            //     // Profile toggle (if connected and card has profile info)
-            //     if (isConnected && dev.card && (dev.microphoneAvail || dev.hqAvail)) {
-            //         let toggleWrap = new St.Widget({ style_class: "profile-toggle-wrap" });
-            //         let toggle = new St.BoxLayout({ style_class: "profile-toggle" });
-            //
-            //         let hqBtn = new St.Button({ style_class: "profile-btn", button_mask: St.ButtonMask.ONE });
-            //         let hqLayout = new St.BoxLayout();
-            //         let hqIc = new St.Icon({ icon_name: "audio-speakers-symbolic", icon_size: 17 });
-            //         hqLayout.add_actor(hqIc);
-            //         hqLayout.add_actor(new St.Label({ text: " High quality" }));
-            //         hqBtn.add_actor(hqLayout);
-            //
-            //         let micBtn = new St.Button({ style_class: "profile-btn", button_mask: St.ButtonMask.ONE });
-            //         let micLayout = new St.BoxLayout();
-            //         let micIc = new St.Icon({ icon_name: "audio-input-microphone-symbolic", icon_size: 17 });
-            //         micLayout.add_actor(micIc);
-            //         micLayout.add_actor(new St.Label({ text: " Microphone" }));
-            //         micBtn.add_actor(micLayout);
-            //
-            //         // Highlight active
-            //         let activeProfile = dev.card.active_profile;
-            //         if (activeProfile) {
-            //             if (activeProfile.name === HIGH_QUALITY_PROFILE) {
-            //                 hqBtn.set_style_class_name("profile-btn hq active");
-            //                 micBtn.set_style_class_name("profile-btn mic");
-            //             } else if (activeProfile.name === HEADSET_PROFILE) {
-            //                 micBtn.set_style_class_name("profile-btn mic active");
-            //                 hqBtn.set_style_class_name("profile-btn hq");
-            //             } else {
-            //                 hqBtn.set_style_class_name("profile-btn");
-            //                 micBtn.set_style_class_name("profile-btn");
-            //             }
-            //         }
-            //
-            //         hqBtn.connect("clicked", () => {
-            //             if (dev.cardName) {
-            //                 GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HIGH_QUALITY_PROFILE);
-            //             }
-            //         });
-            //         micBtn.connect("clicked", () => {
-            //             if (dev.cardName) {
-            //                 GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HEADSET_PROFILE);
-            //             }
-            //         });
-            //
-            //         toggle.add_actor(hqBtn);
-            //         toggle.add_actor(micBtn);
-            //         toggleWrap.add_actor(toggle);
-            //         btItem.add_actor(toggleWrap);
-            //     }
-            //
-            //     // Top-row click: switch to this device or reconnect
-            //     topRow.connect("clicked", () => {
-            //         try {
-            //             if (isConnected) {
-            //                 log("headsetmon: clicking connected device, calling _selectSink('headphones')");
-            //                 this._selectSink("headphones");
-            //             } else {
-            //                 log("headsetmon: clicking disconnected device, reconnecting " + dev.mac);
-            //                 this._disconnectedBtMac = dev.mac;
-            //                 if (dev.type === "pactl" && dev.cardName) {
-            //                     GLib.spawn_command_line_async("pactl set-card-profile " + dev.cardName + " " + HIGH_QUALITY_PROFILE);
-            //                 } else {
-            //                     GLib.spawn_command_line_async("bluetoothctl connect " + dev.mac);
-            //                 }
-            //                 this._fullUpdate();
-            //             }
-            //         } catch (e) {
-            //             log("headsetmon: ERROR in topRow click: " + e + " " + e.stack);
-            //         }
-            //     });
-            //
-            //     this._btDynamicContainer.add_actor(btItem);
-            // }
+            
         } catch (e) {
             log("headsetmon: ERROR in _updateSinkDisplay: " + e + " " + e.stack);
         }
@@ -755,64 +447,95 @@ class DeskClock extends Desklet.Desklet {
 
     _updateAvailableDevices() {
         try {
-        // Find Bluetooth cards that don't have a corresponding sink
-        let btCards = {};
-        for (let idx in this._cards) {
-            let card = this._cards[idx];
-            if (card.properties && card.properties["device.bus"] === "bluetooth") {
-                btCards[idx] = card;
-            }
-        }
+            let connectedMac = this._getConnectedBtMac();
+            let otherDevices = this._bondedDevices.filter(
+                dev => !connectedMac || dev.mac.toUpperCase() !== connectedMac.toUpperCase()
+            );
 
-        // Remove cards that are already known (shown in output list)
-        for (let idx in this._knownBtCards) {
-            delete btCards[idx];
-        }
-
-        let cardKeys = Object.keys(btCards);
-        if (cardKeys.length > 0) {
-            this._availableSectionLabel.show();
             this._availableContainer.destroy_all_children();
 
-            for (let idx of cardKeys) {
-                let card = btCards[idx];
+            if (otherDevices.length === 0) {
+                this._availableSectionLabel.hide();
+                return;
+            }
+
+            this._availableSectionLabel.show();
+
+            for (let dev of otherDevices) {
                 let itemRow = new St.BoxLayout({ style_class: "available-item" });
 
                 let iconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
-                let btIcon = new St.Icon({ icon_name: "bluetooth-symbolic", icon_size: 18 });
-                iconWrap.add_actor(btIcon);
+                iconWrap.add_actor(new St.Icon({ icon_name: "bluetooth-symbolic", icon_size: 18 }));
 
-                let labelBox = new St.BoxLayout({ vertical: true, style_class: "label" });
-                let nameLabel = new St.Label({
-                    text: card.properties["device.description"] || card.name || "Unknown device",
-                    style_class: "name"
-                });
-                let metaLabel = new St.Label({
-                    text: card.properties["device.form_factor"] || "Bluetooth",
-                    style_class: "meta"
-                });
-                labelBox.add_actor(nameLabel);
-                labelBox.add_actor(metaLabel);
+                let labelBox = new St.BoxLayout({ vertical: true, style_class: "label", x_expand: true });
+                labelBox.add_actor(new St.Label({ text: dev.name, style_class: "name" }));
 
                 let connectBtn = new St.Button({
                     label: "Connect",
-                    style_class: "connect-btn"
+                    style_class: "connect-btn",
+                    button_mask: St.ButtonMask.ONE
                 });
-                connectBtn.cardIdx = idx;
-                connectBtn.connect("clicked", () => this._onConnectDevice(idx));
+                connectBtn.connect("clicked", () => this._onConnectBondedDevice(dev.mac));
 
                 itemRow.add_actor(iconWrap);
                 itemRow.add_actor(labelBox);
                 itemRow.add_actor(connectBtn);
                 this._availableContainer.add_actor(itemRow);
             }
-        } else {
-            this._availableSectionLabel.hide();
-            this._availableContainer.destroy_all_children();
+        } catch (e) {
+            log("headsetmon: ERROR in _updateAvailableDevices: " + e + " " + e.stack);
         }
-    } catch (e) {
-        log("headsetmon: ERROR in _updateAvailableDevices: " + e + " " + e.stack);
     }
+
+    // Previously-paired Bluetooth devices, read from bluetoothctl without blocking the UI
+    _readBondedDevices() {
+        try {
+            let proc = new Gio.Subprocess({
+                argv: ["bluetoothctl", "devices", "Bonded"],
+                flags: Gio.SubprocessFlags.STDOUT_PIPE
+            });
+            proc.init(null);
+            proc.communicate_utf8_async(null, null, (p, res) => {
+                try {
+                    let [, stdout] = p.communicate_utf8_finish(res);
+                    this._bondedDevices = this._parseBondedDevices(stdout || "");
+                } catch (e) {
+                    log("headsetmon: ERROR reading bonded devices: " + e);
+                }
+                this._updateAvailableDevices();
+            });
+        } catch (e) {
+            log("headsetmon: ERROR spawning bluetoothctl: " + e);
+        }
+    }
+
+    _parseBondedDevices(text) {
+        let devices = [];
+        for (let line of text.split("\n")) {
+            // bluetoothctl prints "Device <MAC> <Name>"
+            let match = line.trim().match(/^Device\s+([0-9A-F:]{17})\s*(.*)$/i);
+            if (match) {
+                devices.push({ mac: match[1].toUpperCase(), name: match[2] || match[1] });
+            }
+        }
+        return devices;
+    }
+
+    _getConnectedBtMac() {
+        let sink = this._getAnyBluetoothSink();
+        if (!sink) return null;
+        let card = this._cards[sink.card];
+        return card && card.properties ? card.properties["device.string"] : null;
+    }
+
+    _onConnectBondedDevice(mac) {
+        log("headsetmon: connecting bonded device " + mac);
+        GLib.spawn_command_line_async("bluetoothctl connect " + mac);
+        // PulseAudio emits the card/sink events once connected; this is a fallback refresh
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
+            this._fullUpdate();
+            return false;
+        });
     }
 
     _selectSink(type) {
@@ -918,13 +641,6 @@ class DeskClock extends Desklet.Desklet {
             log("headsetmon: _onDisconnect saved mac=" + mac);
             GLib.spawn_command_line_async("bluetoothctl disconnect " + mac);
         }
-    }
-
-    _onConnectDevice(cardIdx) {
-        let card = this._cards[cardIdx];
-        if (!card) return;
-
-        GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + HIGH_QUALITY_PROFILE);
     }
 
     on_desklet_removed(deleteConfig) {

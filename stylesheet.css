@@ -104,26 +104,21 @@
 }
 
 .bt-item {
-    padding: 0;
-    border-radius: 0;
+    padding: 9px 8px;
+    border-radius: 10px;
+    spacing: 8px;
     background-color: transparent;
 }
 
+.bt-item.active {
+    background-color: rgba(255, 255, 255, 0.09);
+}
+
 .bt-item-top {
-    padding: 9px 8px;
-    border-radius: 10px;
     background-color: transparent;
 }
 
 .bt-item-top:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.bt-item.active .bt-item-top {
-    background-color: rgba(255, 255, 255, 0.09);
-}
-
-.bt-item.active .bt-item-top:active {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
@@ -185,7 +180,6 @@
 
 .profile-toggle-wrap {
     padding-left: 30px;
-    padding-bottom: 8px;
 }
 
 .profile-toggle {
