@@ -334,29 +334,29 @@ class DeskClock extends Desklet.Desklet {
         let card = this._cards[sink.card];
         let showProfiles = this._showsProfileToggle(sink, card);
 
-        // Main container for the sink is a button. Clicking allows the user to switch the active sink
-        let sinkContainer = new St.Button({
-            style_class: showProfiles ? "bt-item-top" : "output-item",
+        // Bluetooth device with profiles
+        let sinkButton = new St.Button({
+            style_class: "output-item",
             button_mask: St.ButtonMask.ONE,
             x_fill: true,
             x_expand: true
         });
-        sinkContainer.add_actor(sinkLabelLayout);
-        sinkContainer.connect("clicked", () => this._selectSink(sinkId));
-
-        if (!showProfiles) {
-            return sinkContainer;
-        }
-
-        // Bluetooth device with selectable profiles: keep the sink row and add a profile picker beneath it
-        let sinkItem = new St.BoxLayout({ vertical: true, style_class: "bt-item", x_expand: true });
         if (isActiveSink) {
-            sinkItem.add_style_class_name("active");
+            sinkButton.add_style_class_name("selected");
         }
-        sinkItem.add_actor(sinkContainer);
-        sinkItem.add_actor(this._buildProfileToggle(card));
+        sinkButton.connect("clicked", () => this._selectSink(sinkId));
 
-        return sinkItem;
+        if (showProfiles) {
+            // If this is a bluetooth sink, then we need a container for the additional profile toggle buttons
+            let sinkContent = new St.BoxLayout({ vertical: true, x_expand: true });
+            sinkContent.add_actor(sinkLabelLayout);
+            sinkContent.add_actor(this._buildProfileToggle(card));
+            sinkButton.add_actor(sinkContent);
+        } else {
+            sinkButton.add_actor(sinkLabelLayout);
+        }
+
+        return sinkButton;
     }
 
     _showsProfileToggle(sink, card) {
@@ -386,7 +386,7 @@ class DeskClock extends Desklet.Desklet {
                 x_expand: true
             });
             if (activeProfileName === profile.name) {
-                button.add_style_class_name("active");
+                button.add_style_class_name("selected");
             }
 
             let buttonContent = new St.BoxLayout({ style_class: "profile-btn-content" });

@@ -90,39 +90,16 @@
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.output-item.active {
-    background-color: rgba(255, 255, 255, 0.09);
+.output-item:active {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
-.output-item:active {
-    background-color: rgba(255, 255, 255, 0.05);
+.output-item.selected {
+    background-color: rgba(255, 255, 255, 0.09);
 }
 
 .output-item-layout {
     spacing: 10px;
-}
-
-.bt-item {
-    padding: 9px 8px;
-    border-radius: 10px;
-    spacing: 8px;
-    background-color: transparent;
-}
-
-.bt-item.active {
-    background-color: rgba(255, 255, 255, 0.09);
-}
-
-.bt-item-top {
-    background-color: transparent;
-}
-
-.bt-item-top:active {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.output-item.active .icon {
-    color: #f2f2f2;
 }
 
 /* ─── Output item icon ────────────────────────────────────── */
@@ -133,7 +110,7 @@
     color: #b8b8b8;
 }
 
-.output-item.active .icon {
+.output-item.selected .icon {
     color: #f2f2f2;
 }
 
@@ -218,14 +195,14 @@
 }
 
 /* HQ active state */
-.profile-btn.hq.active {
+.profile-btn.hq.selected {
     background-color: rgba(111, 177, 224, 0.18);
     border-color: #6fb1e0;
     color: #6fb1e0;
 }
 
 /* Microphone active state */
-.profile-btn.mic.active {
+.profile-btn.mic.selected {
     background-color: rgba(224, 164, 88, 0.18);
     border-color: #e0a458;
     color: #e0a458;
