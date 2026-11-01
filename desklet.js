@@ -25,6 +25,7 @@ class DeskClock extends Desklet.Desklet {
         this._bondedDevices = [];
         this._updateTimerId = null;
         this._disconnectedBtMac = null;
+        this._connectingMac = null;
 
         // ─── Container ─────────────────────────────────────────
         this._container = new St.BoxLayout({
@@ -255,6 +256,11 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _doFullUpdate() {
+        // Clear connecting state when any bluetooth sink appears
+        if (this._connectingMac && this._getConnectedBtMac()) {
+            log("headsetmon: connecting device now connected, clearing state");
+            this._connectingMac = null;
+        }
         this._updateSinkDisplay();
         this._updateProfileDisplay();
         this._updateAvailableDevices();
@@ -489,16 +495,35 @@ class DeskClock extends Desklet.Desklet {
                 let labelBox = new St.BoxLayout({ vertical: true, style_class: "label", x_expand: true });
                 labelBox.add_actor(new St.Label({ text: dev.name, style_class: "name" }));
 
-                let connectBtn = new St.Button({
-                    label: "Connect",
-                    style_class: "connect-btn",
-                    button_mask: St.ButtonMask.ONE
-                });
-                connectBtn.connect("clicked", () => this._onConnectBondedDevice(dev.mac));
-
                 itemRow.add_actor(iconWrap);
                 itemRow.add_actor(labelBox);
-                itemRow.add_actor(connectBtn);
+
+                let isConnecting = this._connectingMac &&
+                    dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
+
+                if (isConnecting) {
+                    itemRow.add_actor(new St.Icon({
+                        icon_name: "process-working-symbolic",
+                        icon_size: 16,
+                        style_class: "spinner-icon"
+                    }));
+                    let connectBtn = new St.Button({
+                        label: "Connecting",
+                        style_class: "connect-btn connecting",
+                        button_mask: St.ButtonMask.ONE
+                    });
+                    connectBtn.sensitive = false;
+                    itemRow.add_actor(connectBtn);
+                } else {
+                    let connectBtn = new St.Button({
+                        label: "Connect",
+                        style_class: "connect-btn",
+                        button_mask: St.ButtonMask.ONE
+                    });
+                    connectBtn.connect("clicked", () => this._onConnectBondedDevice(dev.mac));
+                    itemRow.add_actor(connectBtn);
+                }
+
                 this._availableContainer.add_actor(itemRow);
             }
         } catch (e) {
@@ -549,8 +574,10 @@ class DeskClock extends Desklet.Desklet {
 
     _onConnectBondedDevice(mac) {
         log("headsetmon: connecting bonded device " + mac);
+        this._connectingMac = mac;
+        this._fullUpdate();
         GLib.spawn_command_line_async("bluetoothctl connect " + mac);
-        // PulseAudio emits the card/sink events once connected; this is a fallback refresh
+        // Fallback refresh in case PA events are delayed
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
             this._fullUpdate();
             return false;
