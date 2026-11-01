@@ -93,7 +93,7 @@ class DeskClock extends Desklet.Desklet {
         // ─── Available devices section ──────────────────────────
         this._availableSlot = new St.BoxLayout({ vertical: true });
         this._availableSectionLabel = new St.Label({
-            text: "Other Devices",
+            text: "OTHER DEVICES",
             style_class: "section-label"
         });
         this._availableSlot.add_actor(this._availableSectionLabel);
