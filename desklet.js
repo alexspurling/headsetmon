@@ -23,6 +23,7 @@ class DeskClock extends Desklet.Desklet {
         this._cards = {};
         this._knownBtCards = {};
         this._bondedDevices = [];
+        this._updateTimerId = null;
         this._disconnectedBtMac = null;
 
         // ─── Container ─────────────────────────────────────────
@@ -131,7 +132,7 @@ class DeskClock extends Desklet.Desklet {
 
             log("headsetmon: Running initial fullUpdate");
             this._readBondedDevices();
-            this._fullUpdate();
+            this._doFullUpdate();
         } catch (e) {
             log("Error calling pulseAudio: " + e);
         }
@@ -153,6 +154,8 @@ class DeskClock extends Desklet.Desklet {
                         this._readPulseAudioEvent();
                         return;
                     }
+
+                    log("headsetmon: PA event — " + line);
 
                     let on = evt.on;
                     let event = evt.event;
@@ -241,6 +244,17 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _fullUpdate() {
+        if (this._updateTimerId) {
+            GLib.source_remove(this._updateTimerId);
+        }
+        this._updateTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+            this._updateTimerId = null;
+            this._doFullUpdate();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _doFullUpdate() {
         this._updateSinkDisplay();
         this._updateProfileDisplay();
         this._updateAvailableDevices();
@@ -384,6 +398,11 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _updateHeader(activeSink) {
+        if (!activeSink) {
+            log("headsetmon: _updateHeader — activeSink not found for defaultSinkName=" + this._defaultSinkName);
+            return;
+        }
+
         this._deviceName.set_text(activeSink.description);
 
         if (this._isBluetoothSink(activeSink)) {
@@ -435,7 +454,7 @@ class DeskClock extends Desklet.Desklet {
 
             // ── Available sinks list ──
             this._updateAvailableSinkList();
-            
+
         } catch (e) {
             log("headsetmon: ERROR in _updateSinkDisplay: " + e + " " + e.stack);
         }

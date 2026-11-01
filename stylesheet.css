@@ -118,8 +118,12 @@
     background-color: transparent;
 }
 
-.bt-item-top:hover {
+.bt-item-top:active {
     background-color: rgba(255, 255, 255, 0.05);
+}
+
+.output-item.active .icon {
+    color: #f2f2f2;
 }
 
 /* ─── Output item icon ────────────────────────────────────── */
@@ -176,6 +180,11 @@
     color: #e07070;
 }
 
+.icon-btn:active {
+    background-color: rgba(224, 112, 112, 0.16);
+    color: #e07070;
+}
+
 /* ─── Profile toggle ────────────────────────────────────────── */
 
 .profile-toggle-wrap {
@@ -201,6 +210,10 @@
     background-color: rgba(255, 255, 255, 0.09);
 }
 
+.profile-btn:active {
+    background-color: rgba(255, 255, 255, 0.09);
+}
+
 .profile-btn-content {
     spacing: 6px;
 }
@@ -217,6 +230,16 @@
     background-color: rgba(224, 164, 88, 0.18);
     border-color: #e0a458;
     color: #e0a458;
+}
+
+.profile-btn.hq:active {
+    background-color: #6e6e6e;
+    border-color: #919191;
+}
+
+.profile-btn.mic:active {
+    background-color: #6e6e6e;
+    border-color: #919191;
 }
 
 /* ─── Available devices ────────────────────────────────────── */
@@ -238,6 +261,10 @@
 }
 
 .connect-btn:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.connect-btn:active {
     background-color: rgba(255, 255, 255, 0.16);
 }
 
