@@ -17,10 +17,6 @@ set -euo pipefail
 UUID="headsetmon@bytepath"
 LOG="${HOME}/.xsession-errors"
 
-# Lines mentioning the desklet by name, plus console.log output (which arrives as
-# "Gjs-Console-Message:" with no UUID attached, so it cannot be matched precisely).
-FILTER="${UUID}|Gjs-Console-Message|desklet\.js"
-
 follow=1
 
 for arg in "$@"; do
@@ -52,9 +48,4 @@ fi
 [ "$follow" -eq 0 ] && exit 0
 
 echo "Following ${LOG} (Ctrl+C to stop)..."
-if [ -n "$FILTER" ]; then
-    # -A 8 keeps the stack trace that follows an error line.
-    tail -n 0 -F "$LOG" | grep --line-buffered -E -A 8 "$FILTER"
-else
-    tail -n 0 -F "$LOG"
-fi
+tail -n 0 -F "$LOG"
