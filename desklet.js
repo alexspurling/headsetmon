@@ -491,6 +491,9 @@ class DeskClock extends Desklet.Desklet {
             this._availableSectionLabel.show();
 
             for (let dev of otherDevices) {
+                let isConnecting = this._connectingMac &&
+                    dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
+
                 let itemRow = new St.BoxLayout({ style_class: "available-item" });
 
                 let iconWrap = new St.Widget({ style_class: "icon", layout_manager: new Clutter.BinLayout() });
@@ -501,9 +504,6 @@ class DeskClock extends Desklet.Desklet {
 
                 itemRow.add_actor(iconWrap);
                 itemRow.add_actor(labelBox);
-
-                let isConnecting = this._connectingMac &&
-                    dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
 
                 if (isConnecting) {
                     this._spinnerIcon = new St.Icon({
@@ -607,93 +607,20 @@ class DeskClock extends Desklet.Desklet {
         });
     }
 
-    _selectSink(type) {
+    _selectSink(sinkIndex) {
         try {
-            log("headsetmon: _selectSink type=" + type);
-            if (type === "headphones") {
-                let headphoneSink = this._getAnyBluetoothSink();
-                log("headsetmon: _selectSink headphoneSink=" + (headphoneSink ? headphoneSink.name : "null"));
-                if (headphoneSink) {
-                    GLib.spawn_command_line_async(
-                        "pactl set-default-sink " + headphoneSink.name
-                    );
-                    log("headsetmon: _selectSink ran pactl set-default-sink " + headphoneSink.name);
-                }
-            } else if (type === "speakers") {
-                let builtinSink = this._getBuiltinSink();
-                if (builtinSink) {
-                    GLib.spawn_command_line_async(
-                        "pactl set-default-sink " + builtinSink.name
-                    );
-                }
-            }
-        } catch (e) {
-            log("headsetmon: ERROR in _selectSink: " + e);
-        }
-    }
-
-    _onSetProfile(profile) {
-        let headphoneSink = this._getActiveBluetoothSink();
-        if (!headphoneSink) return;
-
-        let card = this._cards[headphoneSink.card];
-        if (!card) return;
-
-        if (profile === "hq") {
-            this._setCardProfile(card, HIGH_QUALITY_PROFILE);
-        } else if (profile === "mic") {
-            this._setCardProfile(card, HEADSET_PROFILE);
-        }
-    }
-
-    _onBtItemClicked() {
-        try {
-            log("headsetmon: _onBtItemClicked called");
-            let btSink = this._getAnyBluetoothSink();
-            log("headsetmon: _getAnyBluetoothSink() = " + (btSink ? btSink.name : "null"));
-            if (btSink) {
-                log("headsetmon: calling _selectSink('headphones')");
-                this._selectSink("headphones");
-            } else {
-                log("headsetmon: calling _onReconnect()");
-                this._onReconnect();
-            }
-        } catch (e) {
-            log("headsetmon: ERROR in _onBtItemClicked: " + e);
-        }
-    }
-
-    _onReconnect() {
-        try {
-            let btCardIdx = Object.keys(this._knownBtCards)[0];
-            log("headsetmon: _onReconnect btCardIdx=" + (btCardIdx || "null")
-                + " knownBtCards=" + Object.keys(this._knownBtCards).length);
-            if (btCardIdx) {
-                let btCard = this._knownBtCards[btCardIdx];
-                log("headsetmon: reconnecting via known card " + btCard.name);
-                GLib.spawn_command_line_async(
-                    "pactl set-card-profile " + btCard.name + " " + HIGH_QUALITY_PROFILE
-                );
-                delete this._knownBtCards[btCardIdx];
+            let sink = this._sinks.get(sinkIndex);
+            if (!sink) {
+                log("headsetmon: _selectSink — sink not found for index " + sinkIndex);
                 return;
             }
-
-            if (this._disconnectedBtMac) {
-                log("headsetmon: reconnecting via bluetoothctl connect " + this._disconnectedBtMac);
-                GLib.spawn_command_line_async(
-                    "bluetoothctl connect " + this._disconnectedBtMac
-                );
-                this._disconnectedBtMac = null;
-            }
-
-            // Schedule a refresh after reconnection to pick up PA state changes
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
-                log("headsetmon: delayed refresh after reconnect");
-                this._fullUpdate();
-                return false;
-            });
+            log("headsetmon: _selectSink index=" + sinkIndex + " name=" + sink.name);
+            GLib.spawn_command_line_async(
+                "pactl set-default-sink " + sink.name
+            );
+            log("headsetmon: _selectSink ran pactl set-default-sink " + sink.name);
         } catch (e) {
-            log("headsetmon: ERROR in _onReconnect: " + e);
+            log("headsetmon: ERROR in _selectSink: " + e);
         }
     }
 
