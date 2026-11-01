@@ -26,6 +26,9 @@ class DeskClock extends Desklet.Desklet {
         this._updateTimerId = null;
         this._disconnectedBtMac = null;
         this._connectingMac = null;
+        this._spinnerAngle = 0;
+        this._spinnerTimerId = 0;
+        this._spinnerIcon = null;
 
         // ─── Container ─────────────────────────────────────────
         this._container = new St.BoxLayout({
@@ -260,6 +263,7 @@ class DeskClock extends Desklet.Desklet {
         if (this._connectingMac && this._getConnectedBtMac()) {
             log("headsetmon: connecting device now connected, clearing state");
             this._connectingMac = null;
+            this._spinnerIcon = null;
         }
         this._updateSinkDisplay();
         this._updateProfileDisplay();
@@ -502,11 +506,14 @@ class DeskClock extends Desklet.Desklet {
                     dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
 
                 if (isConnecting) {
-                    itemRow.add_actor(new St.Icon({
+                    this._spinnerIcon = new St.Icon({
                         icon_name: "process-working-symbolic",
                         icon_size: 16,
                         style_class: "spinner-icon"
-                    }));
+                    });
+                    this._spinnerIcon.set_pivot_point(0.5, 0.5);
+                    this._spinnerIcon.rotation_angle_z = this._spinnerAngle;
+                    itemRow.add_actor(this._spinnerIcon);
                     let connectBtn = new St.Button({
                         label: "Connecting",
                         style_class: "connect-btn connecting",
@@ -575,6 +582,22 @@ class DeskClock extends Desklet.Desklet {
     _onConnectBondedDevice(mac) {
         log("headsetmon: connecting bonded device " + mac);
         this._connectingMac = mac;
+        this._spinnerAngle = 0;
+        this._spinnerIcon = null;
+        // Start spinner animation — ticks independently of PA events
+        if (!this._spinnerTimerId) {
+            this._spinnerTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15, () => {
+                if (!this._connectingMac) {
+                    this._spinnerTimerId = 0;
+                    return GLib.SOURCE_REMOVE;
+                }
+                this._spinnerAngle = (this._spinnerAngle + 5) % 360;
+                if (this._spinnerIcon) {
+                    this._spinnerIcon.rotation_angle_z = this._spinnerAngle;
+                }
+                return GLib.SOURCE_CONTINUE;
+            });
+        }
         this._fullUpdate();
         GLib.spawn_command_line_async("bluetoothctl connect " + mac);
         // Fallback refresh in case PA events are delayed
@@ -690,6 +713,10 @@ class DeskClock extends Desklet.Desklet {
     }
 
     on_desklet_removed(deleteConfig) {
+        if (this._spinnerTimerId) {
+            GLib.source_remove(this._spinnerTimerId);
+            this._spinnerTimerId = 0;
+        }
         if (this._pulseAudioProcess) {
             this._pulseAudioProcess.force_exit();
             this._pulseAudioProcess = null;
