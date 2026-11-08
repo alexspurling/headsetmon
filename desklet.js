@@ -16,10 +16,9 @@ class DeskClock extends Desklet.Desklet {
         super(metadata, desklet_id);
 
         this._timeoutId = 0;
-        this._entityInfo = {};
         this._sinks = new Map();
         this._defaultSinkName = null;
-        this._cards = {};
+        this._cards = new Map();
         this._bondedDevices = [];
         this._updateTimerId = null;
         this._connectingMac = null;
@@ -170,12 +169,12 @@ class DeskClock extends Desklet.Desklet {
                             this._defaultSinkName = data.default_sink_name;
                             this._fullUpdate();
                         } else if (on === "card") {
-                            this._cards[data.index] = {
+                            this._cards.set(data.index, {
                                 name: data.name,
                                 properties: data.properties,
                                 active_profile: data.active_profile,
                                 profiles: data.profiles
-                            };
+                            });
                             if (data.properties && data.properties["device.bus"] === "bluetooth") {
                                 this._readBondedDevices();
                             }
@@ -192,13 +191,13 @@ class DeskClock extends Desklet.Desklet {
                             this._fullUpdate();
                         } else if (on === "card" &&
                                    (evt.prop === "active_profile.name" || evt.prop === "active_profile")) {
-                            if (this._cards[evt.index]) {
-                                this._cards[evt.index].active_profile.name = evt.new;
+                            if (this._cards.get(evt.index)) {
+                                this._cards.get(evt.index).active_profile.name = evt.new;
                             }
                             this._fullUpdate();
                         } else if (on === "card" && evt.prop === "active_profile.description") {
-                            if (this._cards[evt.index]) {
-                                this._cards[evt.index].active_profile.description = evt.new;
+                            if (this._cards.get(evt.index)) {
+                                this._cards.get(evt.index).active_profile.description = evt.new;
                             }
                             this._fullUpdate();
                         }
@@ -210,9 +209,9 @@ class DeskClock extends Desklet.Desklet {
                                 this._fullUpdate();
                             }
                         } else if (on === "card") {
-                            if (this._cards[evt.index]) {
-                                let wasBluetooth = this._isBluetoothCard(this._cards[evt.index]);
-                                delete this._cards[evt.index];
+                            if (this._cards.get(evt.index)) {
+                                let wasBluetooth = this._isBluetoothCard(this._cards.get(evt.index));
+                                this._cards.delete(evt.index);
                                 if (wasBluetooth) this._readBondedDevices();
                                 this._fullUpdate();
                             }
@@ -256,7 +255,7 @@ class DeskClock extends Desklet.Desklet {
 
     _isBluetoothSink(sink) {
         if (!sink) return false;
-        return this._isBluetoothCard(this._cards[sink.card]);
+        return this._isBluetoothCard(this._cards.get(sink.card));
     }
 
     _getAnyBluetoothSink() {
@@ -305,7 +304,7 @@ class DeskClock extends Desklet.Desklet {
             }
         }
 
-        let card = this._cards[sink.card];
+        let card = this._cards.get(sink.card);
         let showProfiles = this._showsProfileToggle(sink, card);
 
         // Bluetooth device with profiles
@@ -394,7 +393,7 @@ class DeskClock extends Desklet.Desklet {
             // Show the green connected badge if this is a bluetooth sink
             this._statusBadge.show();
 
-            let card = this._cards[activeSink.card];
+            let card = this._cards.get(activeSink.card);
             let profileDesc = card && card.active_profile && card.active_profile.description;
             if (profileDesc && profileDesc.indexOf("High Fidelity") !== -1) {
                 this._deviceSubtitle.set_text("Connected · High quality audio");
@@ -465,8 +464,7 @@ class DeskClock extends Desklet.Desklet {
             this._availableSectionLabel.show();
 
             for (let dev of otherDevices) {
-                let isConnecting = this._connectingMac &&
-                    dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
+                let isConnecting = this._connectingMac && dev.mac.toUpperCase() === this._connectingMac.toUpperCase();
 
                 let itemRow = new St.BoxLayout({ style_class: "available-item" });
 
@@ -549,7 +547,7 @@ class DeskClock extends Desklet.Desklet {
     _getConnectedBtMac() {
         let sink = this._getAnyBluetoothSink();
         if (!sink) return null;
-        let card = this._cards[sink.card];
+        let card = this._cards.get(sink.card);
         return card && card.properties ? card.properties["device.string"] : null;
     }
 
@@ -592,7 +590,7 @@ class DeskClock extends Desklet.Desklet {
         let headphoneSink = this._getActiveBluetoothSink();
         if (!headphoneSink) return;
 
-        let card = this._cards[headphoneSink.card];
+        let card = this._cards.get(headphoneSink.card);
         if (!card || !card.properties) return;
 
         let mac = card.properties["device.string"];
