@@ -5,5 +5,5 @@
     "icon": "audio-headphones",
     "version": "1.0.0",
     "prevent-decorations": false,
-    "max-instances": "10"
+    "max-instances": "1"
 }
