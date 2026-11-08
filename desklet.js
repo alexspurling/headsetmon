@@ -11,6 +11,12 @@ const UUID = "headsetmon@bytepath";
 const HEADSET_PROFILE = "headset-head-unit-msbc";
 const HIGH_QUALITY_PROFILE = "a2dp-sink";
 
+/**
+ * Desklet for monitoring and controlling audio output devices in Linux. Uses the paeventmon utility to monitor
+ * changes in the underlying PulseAudio system.
+ *
+ * https://github.com/alexspurling/pulse-audio-event-monitor
+ */
 class DeskClock extends Desklet.Desklet {
     constructor(metadata, desklet_id) {
         super(metadata, desklet_id);
@@ -114,29 +120,29 @@ class DeskClock extends Desklet.Desklet {
 
     on_desklet_added_to_desktop(userEnabled) {
         try {
-            this._pulseAudioProcess = new Gio.Subprocess({
+            this._paEventmonProcess = new Gio.Subprocess({
                 argv: ["paeventmon"],
                 flags: Gio.SubprocessFlags.STDOUT_PIPE
             });
-            this._pulseAudioProcess.init(null);
-            let stdout = this._pulseAudioProcess.get_stdout_pipe();
-            this._pulseAudioStream = new Gio.DataInputStream({
+            this._paEventmonProcess.init(null);
+            let stdout = this._paEventmonProcess.get_stdout_pipe();
+            this._paEventmonStream = new Gio.DataInputStream({
                 base_stream: stdout
             });
-            this._readPulseAudioEvent();
+            this._readPaEventmonEvent();
             this._readBondedDevices();
             this._doFullUpdate();
         } catch (e) {
-            log("Error calling pulseAudio: " + e);
+            log("Error calling paeventmon: " + e);
         }
     }
 
-    _readPulseAudioEvent() {
-        if (this._pulseAudioStream && !this._pulseAudioStream.is_closed()) {
+    _readPaEventmonEvent() {
+        if (this._paEventmonStream && !this._paEventmonStream.is_closed()) {
             log("paeventmon stream has been closed.")
             return;
         }
-        this._pulseAudioStream.read_line_async(
+        this._paEventmonStream.read_line_async(
             GLib.PRIORITY_DEFAULT,
             null,
             (stream, result) => {
@@ -148,7 +154,7 @@ class DeskClock extends Desklet.Desklet {
                     try {
                         evt = JSON.parse(line);
                     } catch (_) {
-                        this._readPulseAudioEvent();
+                        this._readPaEventmonEvent();
                         return;
                     }
 
@@ -157,7 +163,7 @@ class DeskClock extends Desklet.Desklet {
 
                     if (event === "new") {
                         let data = evt.data;
-                        if (!data) { this._readPulseAudioEvent(); return; }
+                        if (!data) { this._readPaEventmonEvent(); return; }
 
                         if (on === "sink") {
                             this._sinks.set(data.index, {
@@ -221,10 +227,10 @@ class DeskClock extends Desklet.Desklet {
                         }
                     }
 
-                    this._readPulseAudioEvent();
+                    this._readPaEventmonEvent();
                 } catch (e) {
-                    log("Error reading pulseAudio: " + e);
-                    this._readPulseAudioEvent();
+                    log("Error reading paeventmon: " + e);
+                    this._readPaEventmonEvent();
                 }
             }
         );
@@ -606,13 +612,13 @@ class DeskClock extends Desklet.Desklet {
             GLib.source_remove(this._updateTimerId);
             this._updateTimerId = null;
         }
-        if (this._pulseAudioStream) {
-            this._pulseAudioStream.close(null);
-            this._pulseAudioStream = null;
+        if (this._paEventmonStream) {
+            this._paEventmonStream.close(null);
+            this._paEventmonStream = null;
         }
-        if (this._pulseAudioProcess) {
-            this._pulseAudioProcess.force_exit();
-            this._pulseAudioProcess = null;
+        if (this._paEventmonProcess) {
+            this._paEventmonProcess.force_exit();
+            this._paEventmonProcess = null;
         }
     }
 }

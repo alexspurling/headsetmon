@@ -2,4 +2,5 @@
 .junie/
 node_modules/
 pactlout/
+dist/
 
