@@ -15,7 +15,6 @@ class DeskClock extends Desklet.Desklet {
     constructor(metadata, desklet_id) {
         super(metadata, desklet_id);
 
-        this._timeoutId = 0;
         this._sinks = new Map();
         this._defaultSinkName = null;
         this._cards = new Map();
@@ -33,14 +32,14 @@ class DeskClock extends Desklet.Desklet {
         });
 
         // ─── Device header row ──────────────────────────────────
-        this._deviceIconBox = new St.Widget({
+        let deviceIconBox = new St.Widget({
             style_class: "device-icon",
             layout_manager: new Clutter.BinLayout()
         });
         this._deviceIcon = new St.Icon({ icon_name: "audio-speakers", icon_size: 22 });
-        this._deviceIconBox.add_actor(this._deviceIcon);
+        deviceIconBox.add_actor(this._deviceIcon);
         this._statusBadge = new St.Widget({ style_class: "status-badge" });
-        this._deviceIconBox.add_actor(this._statusBadge);
+        deviceIconBox.add_actor(this._statusBadge);
         this._statusBadge.hide();
 
         this._deviceName = new St.Label({ style_class: "device-name" });
@@ -63,18 +62,18 @@ class DeskClock extends Desklet.Desklet {
         let deviceRow = new St.BoxLayout({
             style_class: "device-row"
         });
-        deviceRow.add_actor(this._deviceIconBox);
+        deviceRow.add_actor(deviceIconBox);
         deviceRow.add_actor(deviceInfo);
         this._container.add_actor(deviceRow);
 
         this._container.add_actor(new St.Widget({ style_class: "divider" }));
 
         // ─── Section label: Output device ───────────────────────
-        this._outputSectionLabel = new St.Label({
+        let outputSectionLabel = new St.Label({
             text: "OUTPUT DEVICE",
             style_class: "section-label"
         });
-        this._container.add_actor(this._outputSectionLabel);
+        this._container.add_actor(outputSectionLabel);
 
         // ─── Output list ────────────────────────────────────────
         this._outputList = new St.BoxLayout({
@@ -82,21 +81,19 @@ class DeskClock extends Desklet.Desklet {
             style_class: "output-list"
         });
 
-        this._btDynamicContainer = new St.BoxLayout({ vertical: true });
-        this._outputList.add_actor(this._btDynamicContainer);
         this._container.add_actor(this._outputList);
 
-        // ─── Available devices section ──────────────────────────
-        this._availableSlot = new St.BoxLayout({ vertical: true });
+        // ─── Other available devices section ──────────────────────────
+        let availableSlot = new St.BoxLayout({ vertical: true });
         this._availableSectionLabel = new St.Label({
             text: "OTHER DEVICES",
             style_class: "section-label"
         });
-        this._availableSlot.add_actor(this._availableSectionLabel);
+        availableSlot.add_actor(this._availableSectionLabel);
         this._availableSectionLabel.hide();
         this._availableContainer = new St.BoxLayout({ vertical: true });
-        this._availableSlot.add_actor(this._availableContainer);
-        this._container.add_actor(this._availableSlot);
+        availableSlot.add_actor(this._availableContainer);
+        this._container.add_actor(availableSlot);
 
         // Load stylesheet
         this._reloadStylesheet();
@@ -245,7 +242,6 @@ class DeskClock extends Desklet.Desklet {
             this._spinnerIcon = null;
         }
         this._updateSinkDisplay();
-        this._updateProfileDisplay();
         this._updateAvailableDevices();
     }
 
@@ -438,10 +434,6 @@ class DeskClock extends Desklet.Desklet {
         } catch (e) {
             log("headsetmon: ERROR in _updateSinkDisplay: " + e + " " + e.stack);
         }
-    }
-
-    _updateProfileDisplay() {
-        // Profile state is now handled inside _updateSinkDisplay
     }
 
     _updateAvailableDevices() {
