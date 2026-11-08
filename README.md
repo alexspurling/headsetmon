@@ -15,7 +15,7 @@ This Cinnamon desklet was created to ease some of the frustration with Linux Min
 
 * First download and install [paeventmon](https://github.com/alexspurling/pulse-audio-event-monitor)
 * Place the `paeventmon` binary in your path e.g. in `~/.local/bin`
-* Download the desklet zip package from the [releases page](https://github.com/alexspurling/headsetmon-desklet/releases).
+* Download the desklet zip package from the [releases page](https://github.com/alexspurling/headsetmon/releases).
 * Extract the zip to `~/.local/share/cinnamon/desklets/`
 * A directory will be created called `headsetmon@bytepath`
 * Right-click your desktop and select `Desklets`
