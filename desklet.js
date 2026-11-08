@@ -132,6 +132,10 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _readPulseAudioEvent() {
+        if (this._pulseAudioStream && !this._pulseAudioStream.is_closed()) {
+            log("paeventmon stream has been closed.")
+            return;
+        }
         this._pulseAudioStream.read_line_async(
             GLib.PRIORITY_DEFAULT,
             null,
@@ -186,28 +190,30 @@ class DeskClock extends Desklet.Desklet {
                         } else if (on === "server" && evt.prop === "default_sink_name") {
                             this._defaultSinkName = evt.new;
                             this._fullUpdate();
-                        } else if (on === "card" &&
-                                   (evt.prop === "active_profile.name" || evt.prop === "active_profile")) {
-                            if (this._cards.get(evt.index)) {
-                                this._cards.get(evt.index).active_profile.name = evt.new;
+                        } else if (on === "card" && evt.prop === "active_profile.name") {
+                            let card = this._cards.get(evt.index);
+                            if (card && card.active_profile) {
+                                card.active_profile.name = evt.new;
                             }
                             this._fullUpdate();
                         } else if (on === "card" && evt.prop === "active_profile.description") {
-                            if (this._cards.get(evt.index)) {
-                                this._cards.get(evt.index).active_profile.description = evt.new;
+                            let card = this._cards.get(evt.index);
+                            if (card && card.active_profile) {
+                                card.active_profile.description = evt.new;
                             }
                             this._fullUpdate();
                         }
                     } else if (event === "remove") {
                         if (on === "sink") {
-                            let name = this._sinks.get(evt.index).name;
-                            if (name) {
+                            let sink = this._sinks.get(evt.index);
+                            if (sink) {
                                 this._sinks.delete(evt.index);
                                 this._fullUpdate();
                             }
                         } else if (on === "card") {
-                            if (this._cards.get(evt.index)) {
-                                let wasBluetooth = this._isBluetoothCard(this._cards.get(evt.index));
+                            let card = this._cards.get(evt.index);
+                            if (card) {
+                                let wasBluetooth = this._isBluetoothCard(card);
                                 this._cards.delete(evt.index);
                                 if (wasBluetooth) this._readBondedDevices();
                                 this._fullUpdate();
@@ -599,6 +605,10 @@ class DeskClock extends Desklet.Desklet {
         if (this._updateTimerId) {
             GLib.source_remove(this._updateTimerId);
             this._updateTimerId = null;
+        }
+        if (this._pulseAudioStream) {
+            this._pulseAudioStream.close(null);
+            this._pulseAudioStream = null;
         }
         if (this._pulseAudioProcess) {
             this._pulseAudioProcess.force_exit();
