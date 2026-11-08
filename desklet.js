@@ -19,9 +19,7 @@ class DeskClock extends Desklet.Desklet {
         this._entityInfo = {};
         this._sinks = new Map();
         this._defaultSinkName = null;
-        this._sinkIndexToName = {};
         this._cards = {};
-        this._knownBtCards = {};
         this._bondedDevices = [];
         this._updateTimerId = null;
         this._connectingMac = null;
@@ -167,7 +165,6 @@ class DeskClock extends Desklet.Desklet {
                                 card: data.card,
                                 description: data.description
                             });
-                            this._sinkIndexToName[data.index] = data.name;
                             this._fullUpdate();
                         } else if (on === "server" && data.default_sink_name) {
                             this._defaultSinkName = data.default_sink_name;
@@ -180,11 +177,6 @@ class DeskClock extends Desklet.Desklet {
                                 profiles: data.profiles
                             };
                             if (data.properties && data.properties["device.bus"] === "bluetooth") {
-                                this._knownBtCards[data.index] = {
-                                    name: data.name,
-                                    description: data.properties["device.description"] || data.name,
-                                    mac: data.properties["device.string"]
-                                };
                                 this._readBondedDevices();
                             }
                             this._fullUpdate();
@@ -212,16 +204,14 @@ class DeskClock extends Desklet.Desklet {
                         }
                     } else if (event === "remove") {
                         if (on === "sink") {
-                            let name = this._sinkIndexToName[evt.index];
+                            let name = this._sinks.get(evt.index).name;
                             if (name) {
                                 this._sinks.delete(evt.index);
-                                delete this._sinkIndexToName[evt.index];
                                 this._fullUpdate();
                             }
                         } else if (on === "card") {
                             if (this._cards[evt.index]) {
                                 let wasBluetooth = this._isBluetoothCard(this._cards[evt.index]);
-                                delete this._knownBtCards[evt.index];
                                 delete this._cards[evt.index];
                                 if (wasBluetooth) this._readBondedDevices();
                                 this._fullUpdate();
@@ -463,6 +453,9 @@ class DeskClock extends Desklet.Desklet {
             );
 
             this._availableContainer.destroy_all_children();
+            // Any previously-created spinner icon is now destroyed; drop the
+            // reference so the spinner timer doesn't write to a disposed actor.
+            this._spinnerIcon = null;
 
             if (otherDevices.length === 0) {
                 this._availableSectionLabel.hide();
