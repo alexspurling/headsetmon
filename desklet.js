@@ -24,7 +24,6 @@ class DeskClock extends Desklet.Desklet {
         this._knownBtCards = {};
         this._bondedDevices = [];
         this._updateTimerId = null;
-        this._disconnectedBtMac = null;
         this._connectingMac = null;
         this._spinnerAngle = 0;
         this._spinnerTimerId = 0;
@@ -121,8 +120,6 @@ class DeskClock extends Desklet.Desklet {
 
     on_desklet_added_to_desktop(userEnabled) {
         try {
-            log("headsetmon: Loading desklet");
-
             this._pulseAudioProcess = new Gio.Subprocess({
                 argv: ["paeventmon"],
                 flags: Gio.SubprocessFlags.STDOUT_PIPE
@@ -133,8 +130,6 @@ class DeskClock extends Desklet.Desklet {
                 base_stream: stdout
             });
             this._readPulseAudioEvent();
-
-            log("headsetmon: Running initial fullUpdate");
             this._readBondedDevices();
             this._doFullUpdate();
         } catch (e) {
@@ -159,8 +154,6 @@ class DeskClock extends Desklet.Desklet {
                         return;
                     }
 
-                    log("headsetmon: PA event — " + line);
-
                     let on = evt.facility;
                     let event = evt.event;
 
@@ -178,10 +171,8 @@ class DeskClock extends Desklet.Desklet {
                             this._fullUpdate();
                         } else if (on === "server" && data.default_sink_name) {
                             this._defaultSinkName = data.default_sink_name;
-                            console.log("Got default sink name", evt);
                             this._fullUpdate();
                         } else if (on === "card") {
-                            log("headsetmon: card new idx=" + data.index + " name=" + data.name + " bus=" + (data.properties ? data.properties["device.bus"] : "?"));
                             this._cards[data.index] = {
                                 name: data.name,
                                 properties: data.properties,
@@ -206,17 +197,14 @@ class DeskClock extends Desklet.Desklet {
                             }
                         } else if (on === "server" && evt.prop === "default_sink_name") {
                             this._defaultSinkName = evt.new;
-                            console.log("Got new default sink name", evt);
                             this._fullUpdate();
                         } else if (on === "card" &&
                                    (evt.prop === "active_profile.name" || evt.prop === "active_profile")) {
-                            log("headsetmon: card change active_profile.name -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.name = evt.new;
                             }
                             this._fullUpdate();
                         } else if (on === "card" && evt.prop === "active_profile.description") {
-                            log("headsetmon: card change active_profile.description -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.description = evt.new;
                             }
@@ -224,13 +212,10 @@ class DeskClock extends Desklet.Desklet {
                         }
                     } else if (event === "remove") {
                         if (on === "sink") {
-                            console.log("headsetmon: Removing sink ", evt);
                             let name = this._sinkIndexToName[evt.index];
                             if (name) {
-                                console.log("Removing sink from state", this._sinks.size);
                                 this._sinks.delete(evt.index);
                                 delete this._sinkIndexToName[evt.index];
-                                console.log("Removed sink from state", this._sinks.size);
                                 this._fullUpdate();
                             }
                         } else if (on === "card") {
@@ -266,7 +251,6 @@ class DeskClock extends Desklet.Desklet {
     _doFullUpdate() {
         // Clear connecting state when any bluetooth sink appears
         if (this._connectingMac && this._getConnectedBtMac()) {
-            log("headsetmon: connecting device now connected, clearing state");
             this._connectingMac = null;
             this._spinnerIcon = null;
         }
@@ -448,9 +432,6 @@ class DeskClock extends Desklet.Desklet {
 
         for (const [sinkId, sink] of this._sinks) {
             let name = sink.name;
-            let card = sink.card;
-            let description = sink.description;
-            console.log("Sink: ", sinkId, name, card, description);
 
             let isActiveSink = name === this._defaultSinkName;
 
@@ -585,7 +566,6 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _onConnectBondedDevice(mac) {
-        log("headsetmon: connecting bonded device " + mac);
         this._connectingMac = mac;
         this._spinnerAngle = 0;
         this._spinnerIcon = null;
@@ -619,11 +599,9 @@ class DeskClock extends Desklet.Desklet {
                 log("headsetmon: _selectSink — sink not found for index " + sinkIndex);
                 return;
             }
-            log("headsetmon: _selectSink index=" + sinkIndex + " name=" + sink.name);
             GLib.spawn_command_line_async(
                 "pactl set-default-sink " + sink.name
             );
-            log("headsetmon: _selectSink ran pactl set-default-sink " + sink.name);
         } catch (e) {
             log("headsetmon: ERROR in _selectSink: " + e);
         }
@@ -638,8 +616,6 @@ class DeskClock extends Desklet.Desklet {
 
         let mac = card.properties["device.string"];
         if (mac) {
-            this._disconnectedBtMac = mac;
-            log("headsetmon: _onDisconnect saved mac=" + mac);
             GLib.spawn_command_line_async("bluetoothctl disconnect " + mac);
         }
     }
