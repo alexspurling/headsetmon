@@ -278,12 +278,6 @@ class DeskClock extends Desklet.Desklet {
         );
     }
 
-    _getBuiltinSink() {
-        return Array.from(this._sinks.values()).find(
-            sink => !this._isBluetoothSink(sink)
-        );
-    }
-
     _getSinkDisplay(sinkId, sink, isActiveSink) {
 
         // Icon
@@ -393,7 +387,7 @@ class DeskClock extends Desklet.Desklet {
 
     _setCardProfile(card, profileName) {
         if (!card || !card.name) return;
-        GLib.spawn_command_line_async("pactl set-card-profile " + card.name + " " + profileName);
+        GLib.spawn_async(null, ["pactl", "set-card-profile", card.name, profileName], null, GLib.SpawnFlags.SEARCH_PATH, null);
     }
 
     _updateHeader(activeSink) {
@@ -584,12 +578,7 @@ class DeskClock extends Desklet.Desklet {
             });
         }
         this._fullUpdate();
-        GLib.spawn_command_line_async("bluetoothctl connect " + mac);
-        // Fallback refresh in case PA events are delayed
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
-            this._fullUpdate();
-            return false;
-        });
+        GLib.spawn_async(null, ["bluetoothctl", "connect", mac], null, GLib.SpawnFlags.SEARCH_PATH, null);
     }
 
     _selectSink(sinkIndex) {
@@ -599,9 +588,7 @@ class DeskClock extends Desklet.Desklet {
                 log("headsetmon: _selectSink — sink not found for index " + sinkIndex);
                 return;
             }
-            GLib.spawn_command_line_async(
-                "pactl set-default-sink " + sink.name
-            );
+            GLib.spawn_async(null, ["pactl", "set-default-sink", sink.name], null, GLib.SpawnFlags.SEARCH_PATH, null);
         } catch (e) {
             log("headsetmon: ERROR in _selectSink: " + e);
         }
@@ -616,7 +603,7 @@ class DeskClock extends Desklet.Desklet {
 
         let mac = card.properties["device.string"];
         if (mac) {
-            GLib.spawn_command_line_async("bluetoothctl disconnect " + mac);
+            GLib.spawn_async(null, ["bluetoothctl", "disconnect", mac], null, GLib.SpawnFlags.SEARCH_PATH, null);
         }
     }
 
@@ -624,6 +611,10 @@ class DeskClock extends Desklet.Desklet {
         if (this._spinnerTimerId) {
             GLib.source_remove(this._spinnerTimerId);
             this._spinnerTimerId = 0;
+        }
+        if (this._updateTimerId) {
+            GLib.source_remove(this._updateTimerId);
+            this._updateTimerId = null;
         }
         if (this._pulseAudioProcess) {
             this._pulseAudioProcess.force_exit();
