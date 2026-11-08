@@ -124,8 +124,7 @@ class DeskClock extends Desklet.Desklet {
             log("headsetmon: Loading desklet");
 
             this._pulseAudioProcess = new Gio.Subprocess({
-                // argv: ["/home/alex/dev/cpp/paeventmon/cmake-build-debug/paeventmon"],
-                argv: ["/home/alex/dev/cpp/paeventmonrust/target/release/paeventmonrust"],
+                argv: ["paeventmon"],
                 flags: Gio.SubprocessFlags.STDOUT_PIPE
             });
             this._pulseAudioProcess.init(null);
@@ -162,111 +161,86 @@ class DeskClock extends Desklet.Desklet {
 
                     log("headsetmon: PA event — " + line);
 
-                    let on = evt.on || evt.facility;
+                    let on = evt.facility;
                     let event = evt.event;
 
-                    // Rust format nests entity fields under "data" for new events.
-                    // Merge them into evt so the dispatch below works uniformly.
-                    if (evt.data) {
+                    if (event === "new") {
                         let data = evt.data;
-                        delete evt.data;
-                        for (let k in data) {
-                            evt[k] = data[k];
-                        }
-                        // Normalise field names from Rust format to what the
-                        // dispatch logic expects.
-                        if (evt.properties !== undefined && evt.proplist === undefined) {
-                            evt.proplist = evt.properties;
-                        }
-                        if (typeof evt.active_profile === "string") {
-                            evt.active_profile = {
-                                name: evt.active_profile,
-                                description: evt.active_profile
-                            };
-                        }
-                        if (evt.profiles !== undefined && evt.profiles2 === undefined) {
-                            evt.profiles2 = [];
-                            for (let name in evt.profiles) {
-                                let p = evt.profiles[name];
-                                p.name = name;
-                                evt.profiles2.push(p);
-                            }
-                        }
-                    }
+                        if (!data) { this._readPulseAudioEvent(); return; }
 
-                    if (event === "new" || event === "change") {
-                        if (on === "sink" && evt.name && evt.card && evt.description) {
-                            this._sinks.set(evt.index, {
-                                name: evt.name,
-                                card: evt.card,
-                                description: evt.description
+                        if (on === "sink") {
+                            this._sinks.set(data.index, {
+                                name: data.name,
+                                card: data.card,
+                                description: data.description
                             });
+                            this._sinkIndexToName[data.index] = data.name;
                             this._fullUpdate();
-                        } else if (on === "sink" && event === "change" && evt.prop === "description") {
-                            if (this._sinks.has(evt.index)) {
-                                this._sinks.get(evt.index).description = evt.new;
-                                this._fullUpdate();
-                            }
-                        } else if (on === "server" && evt.default_sink_name) {
-                            this._defaultSinkName = evt.default_sink_name;
+                        } else if (on === "server" && data.default_sink_name) {
+                            this._defaultSinkName = data.default_sink_name;
                             console.log("Got default sink name", evt);
                             this._fullUpdate();
-                        } else if (on === "server" && event === "change" && evt.prop === "default_sink_name") {
-                            this._defaultSinkName = evt.new;
-                            console.log("Got new default sink name", evt);
-                            this._fullUpdate();
-                        } else if (on === "card" && event === "new") {
-                            log("headsetmon: card new idx=" + evt.index + " name=" + evt.name + " bus=" + (evt.proplist ? evt.proplist["device.bus"] : "?"));
-                            this._cards[evt.index] = {
-                                name: evt.name,
-                                properties: evt.proplist,
-                                active_profile: evt.active_profile,
-                                profiles: evt.profiles2
+                        } else if (on === "card") {
+                            log("headsetmon: card new idx=" + data.index + " name=" + data.name + " bus=" + (data.properties ? data.properties["device.bus"] : "?"));
+                            this._cards[data.index] = {
+                                name: data.name,
+                                properties: data.properties,
+                                active_profile: data.active_profile,
+                                profiles: data.profiles
                             };
-                            if (evt.proplist && evt.proplist["device.bus"] === "bluetooth") {
-                                this._knownBtCards[evt.index] = {
-                                    name: evt.name,
-                                    description: evt.proplist["device.description"] || evt.name,
-                                    mac: evt.proplist["device.string"]
+                            if (data.properties && data.properties["device.bus"] === "bluetooth") {
+                                this._knownBtCards[data.index] = {
+                                    name: data.name,
+                                    description: data.properties["device.description"] || data.name,
+                                    mac: data.properties["device.string"]
                                 };
                                 this._readBondedDevices();
                             }
                             this._fullUpdate();
-                        } else if (on === "card" && event === "change" &&
-                           (evt.prop === "active_profile.name" || evt.prop === "active_profile")) {
+                        }
+                    } else if (event === "change") {
+                        if (on === "sink" && evt.prop === "description") {
+                            if (this._sinks.has(evt.index)) {
+                                this._sinks.get(evt.index).description = evt.new;
+                                this._fullUpdate();
+                            }
+                        } else if (on === "server" && evt.prop === "default_sink_name") {
+                            this._defaultSinkName = evt.new;
+                            console.log("Got new default sink name", evt);
+                            this._fullUpdate();
+                        } else if (on === "card" &&
+                                   (evt.prop === "active_profile.name" || evt.prop === "active_profile")) {
                             log("headsetmon: card change active_profile.name -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.name = evt.new;
                             }
                             this._fullUpdate();
-                        } else if (on === "card" && event === "change" && evt.prop === "active_profile.description") {
+                        } else if (on === "card" && evt.prop === "active_profile.description") {
                             log("headsetmon: card change active_profile.description -> " + evt.new + " idx=" + evt.index);
                             if (this._cards[evt.index]) {
                                 this._cards[evt.index].active_profile.description = evt.new;
                             }
                             this._fullUpdate();
                         }
-
-                        if (on === "sink" && evt.name) {
-                            this._sinkIndexToName[evt.index] = evt.name;
-                        }
-                    } else if (event === "remove" && on === "sink") {
-                        console.log("headsetmon: Removing sink ", evt);
-                        let name = this._sinkIndexToName[evt.index];
-                        if (name) {
-                            console.log("Removing sink from state", this._sinks.size);
-                            this._sinks.delete(evt.index);
-                            delete this._sinkIndexToName[evt.index];
-                            console.log("Removed sink from state", this._sinks.size);
-                            this._fullUpdate();
-                        }
-                    } else if (event === "remove" && on === "card") {
-                        if (this._cards[evt.index]) {
-                            let wasBluetooth = this._isBluetoothCard(this._cards[evt.index]);
-                            delete this._knownBtCards[evt.index];
-                            delete this._cards[evt.index];
-                            if (wasBluetooth) this._readBondedDevices();
-                            this._fullUpdate();
+                    } else if (event === "remove") {
+                        if (on === "sink") {
+                            console.log("headsetmon: Removing sink ", evt);
+                            let name = this._sinkIndexToName[evt.index];
+                            if (name) {
+                                console.log("Removing sink from state", this._sinks.size);
+                                this._sinks.delete(evt.index);
+                                delete this._sinkIndexToName[evt.index];
+                                console.log("Removed sink from state", this._sinks.size);
+                                this._fullUpdate();
+                            }
+                        } else if (on === "card") {
+                            if (this._cards[evt.index]) {
+                                let wasBluetooth = this._isBluetoothCard(this._cards[evt.index]);
+                                delete this._knownBtCards[evt.index];
+                                delete this._cards[evt.index];
+                                if (wasBluetooth) this._readBondedDevices();
+                                this._fullUpdate();
+                            }
                         }
                     }
 
@@ -394,8 +368,8 @@ class DeskClock extends Desklet.Desklet {
         if (!this._isBluetoothSink(sink) || !card || !card.profiles) {
             return false;
         }
-        let hasHighQuality = card.profiles.some(p => p.name === HIGH_QUALITY_PROFILE);
-        let hasHeadset = card.profiles.some(p => p.name === HEADSET_PROFILE);
+        let hasHighQuality = HIGH_QUALITY_PROFILE in card.profiles;
+        let hasHeadset = HEADSET_PROFILE in card.profiles;
         return hasHighQuality && hasHeadset;
     }
 
