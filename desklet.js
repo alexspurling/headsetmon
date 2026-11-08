@@ -232,6 +232,7 @@ class DeskClock extends Desklet.Desklet {
                     this._readPulseAudioEvent();
                 } catch (e) {
                     log("Error reading pulseAudio: " + e);
+                    this._readPulseAudioEvent();
                 }
             }
         );
