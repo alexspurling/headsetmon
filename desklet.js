@@ -138,7 +138,7 @@ class DeskClock extends Desklet.Desklet {
     }
 
     _readPaEventmonEvent() {
-        if (this._paEventmonStream && !this._paEventmonStream.is_closed()) {
+        if (!this._paEventmonStream || this._paEventmonStream.is_closed()) {
             log("paeventmon stream has been closed.")
             return;
         }
